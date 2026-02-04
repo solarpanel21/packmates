@@ -347,3 +347,105 @@ button.card-button {
         min-height: 100%;
     }
 }
+
+
+
+/* newTrip Page unique css*/
+.gridNewTrip {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    height: 100vh;
+    font-family: 'Montserrat', sans-serif;
+    color: #333;
+    overflow-y: scroll;
+}
+
+.newTripMenu {
+    padding: 2em 5%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.newTripMenu form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.mapArea {
+    background: url(img/mapPlaceholder.png);
+    background-size: 100% 100%;
+}
+
+.bottomMargin {
+    margin-bottom: 2em;
+}
+
+.dateInput {
+    width: 80%;
+    padding: 12px 18px;
+    margin-bottom: 3em;
+}
+
+.sideBySide {
+    display: grid;
+    grid-template-columns: 50% 50%;
+    height: auto;
+}
+
+textarea {
+    align-content: normal;
+    margin-bottom: 3em;
+    height: 10em;
+    overflow-y: scroll;
+    width: 100%;
+    padding: 12px 18px;
+    margin: 20px 0 16px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    border: 1px solid #cdd6de;
+    border-radius: 12px;
+    outline: none;
+    resize: none;
+}
+
+textarea::placeholder {
+    color: #99a8b4;
+}
+
+.cancelSaveButtons {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: auto;
+}
+
+.cancel {
+    background: red;
+    width: 30%;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.save {
+    width: 30%;
+    background: #5f9d30;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-left: auto;
+}
