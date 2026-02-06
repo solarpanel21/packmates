@@ -1,0 +1,116 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  height: 100vh;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(180deg, #1b6f8a, #0b2f3f);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-card {
+  width: 400px;
+  padding: 40px 30px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  text-align: center;
+}
+
+.logo {
+  font-size: 48px;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.login-card h1 {
+  color: white;
+  font-size: 28px;
+  margin-bottom: 30px;
+}
+
+.login-form input {
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 15px;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+}
+
+/* 🔒 THIS LOCKS THE ALIGNMENT */
+.remember-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 20px;
+}
+
+.remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  font-size: 14px;
+  white-space: nowrap; /* Prevent text from breaking to new line */
+}
+
+.remember input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  vertical-align: middle;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 14px;
+  background: #5f9c30;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #0b2f3f;
+  cursor: pointer;
+  margin-bottom: 25px;
+}
+
+.divider {
+  color: white;
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.socials {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.social {
+  width: 40px;
+  height: 40px;
+  background: white;
+  color: #0b2f3f;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+}
+
+.switch {
+  margin-top: 20px;
+  font-size: 14px;
+  color: white;
+}
+
+.switch a {
+  color: #5f9c30;
+  text-decoration: none;
+  font-weight: bold;
+}
