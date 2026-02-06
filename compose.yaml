@@ -1,0 +1,7 @@
+services:
+  packmates:
+    build:
+      context: ./packmates
+      target: final
+    ports:
+      - 8080:80

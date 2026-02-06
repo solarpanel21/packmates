@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Quick fix: override absolute positioning with flexbox layout */
+    .desktop {
+      min-width: auto !important;
+      width: 100%;
+      min-height: 100vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 260px;
+      padding-bottom: 40px;
+      gap: 20px;
+    }
+    .desktop .rectangle {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+    }
+    .desktop .profile-top {
+      position: relative;
+      top: auto;
+      left: auto;
+      width: 840px;
+      max-width: 95%;
+    }
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      width: 840px;
+      max-width: 95%;
+    }
+    .settings-grid a {
+      display: block;
+    }
+    /* Force consistent size for all setting boxes */
+    .settings-grid .personal-data,
+    .settings-grid .subscription,
+    .settings-grid .privacy,
+    .settings-grid .security,
+    .settings-grid .notifications,
+    .settings-grid .help-center {
+      position: relative;
+      top: auto !important;
+      left: auto !important;
+      width: 100% !important;
+      height: 100px !important;
+      display: flex;
+      background-color: #ffffff;
+      border-radius: 20px;
+    }
+    /* Fix the icon squares - override notifications CSS */
+    .settings-grid .rectangle-4 {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 41px !important;
+      height: 41px !important;
+      background-color: #4d4d4d !important;
+      border-radius: 20px !important;
+    }
+    .settings-grid .group,
+    .settings-grid .group-2,
+    .settings-grid .group-3,
+    .settings-grid .group-4,
+    .settings-grid .group-5,
+    .settings-grid .group-6 {
+      margin-top: 29px;
+      height: 41px;
+      margin-left: 20px;
+      position: relative;
+    }
+    .settings-grid .text-wrapper-4 {
+      position: absolute;
+      top: 0;
+      left: 64px;
+      font-family: "Montserrat", Helvetica, sans-serif;
+      font-weight: 700;
+      color: #000000;
+      font-size: 20px;
+      white-space: nowrap;
+    }
+    .settings-grid .text-wrapper-5 {
+      position: absolute;
+      top: 24px;
+      left: 64px;
+      font-family: "Montserrat", Helvetica, sans-serif;
+      font-weight: 500;
+      color: #4d4d4d;
+      font-size: 12px;
+    }
+    .desktop .group-7 {
+      position: relative;
+      top: auto;
+      left: auto;
+      width: 840px;
+      max-width: 95%;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="sidebar">
+    <div class="brand">
+      <img src="img/appIcon.png" alt="Packmates" class="icon">
+      <span>Packmates</span>
+    </div>
+    <div class="nav-buttons">
+      <button type="reset" onclick="location.href='index.html'"><img src="img/home.png" alt=""
+          class="icon"><span>Home</span></button>
+      <button type="reset" onclick="location.href='discover.html'"><img src="img/calendar.png" alt=""
+          class="icon"><span>Discover</span></button>
+      <button type="reset" onclick="location.href='notifications.html'"><img src="img/notif.png" alt=""
+          class="icon"><span>Notifications</span></button>
+      <button type="reset" onclick="location.href='profile.html'"><img src="img/profile.png" alt=""
+          class="icon"><span>Profile</span></button>
+    </div>
+    <div class="nav-bottom">
+      <hr>
+      <button class="logout" type="reset" onclick="location.href='welcome.html'"><img src="img/home.png" alt=""
+          class="icon"><span>Logout</span></button>
+    </div>
+  </nav>
+
+  <div class="desktop">
+    <div class="rectangle"></div>
+    <div class="profile-top">
+      <div class="div"></div>
+      <div class="text-wrapper">PackMates Guest</div>
+      <div class="text-wrapper-2">@PACKMATES_GUEST_ACCOUNT</div>
+      <div class="rectangle-2"></div>
+      <div class="rectangle-3"></div>
+      <div class="text-wrapper-3">EDIT PROFILE</div>
+      <img class="image" src="img/plusPlaceholder.jpg" />
+    </div>
+
+    <div class="settings-grid">
+      <div class="personal-data">
+        <div class="group">
+          <div class="rectangle-4"></div>
+          <div class="text-wrapper-4">Personal Data</div>
+          <div class="text-wrapper-5">Name, Email, Phone</div>
+        </div>
+      </div>
+      <div class="security">
+        <div class="group-4">
+          <div class="rectangle-4"></div>
+          <div class="text-wrapper-4">Security</div>
+          <div class="text-wrapper-5">Password</div>
+        </div>
+      </div>
+      <div class="subscription">
+        <div class="group-2">
+          <div class="rectangle-4"></div>
+          <div class="text-wrapper-4">Subscription</div>
+          <div class="text-wrapper-5">Manage your plan</div>
+        </div>
+      </div>
+      <a href="notifications.html">
+        <div class="notifications">
+          <div class="group-5">
+            <div class="rectangle-4"></div>
+            <div class="text-wrapper-4">Notifications</div>
+            <div class="text-wrapper-5">Alerts and emails</div>
+          </div>
+        </div>
+      </a>
+      <div class="privacy">
+        <div class="group-3">
+          <div class="rectangle-4"></div>
+          <div class="text-wrapper-4">Privacy</div>
+          <div class="text-wrapper-5">Data</div>
+        </div>
+      </div>
+      <div class="help-center">
+        <div class="group-6">
+          <div class="rectangle-4"></div>
+          <div class="text-wrapper-4">Help Center</div>
+          <div class="text-wrapper-5">Support and FAQs</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="group-7">
+      <div class="rectangle-5"></div>
+      <div class="text-wrapper-6">LOGOUT</div>
+    </div>
+  </div>
+</body>
+
+</html>

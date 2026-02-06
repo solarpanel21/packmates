@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packmates</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!--Side Navbar (keep on all pages)-->
+    <nav class="sidebar">
+        <div class="brand">
+            <img src="img/appIcon.png" alt="Packmates" class="icon">
+            <span>Packmates</span>
+        </div>
+        <div class="nav-buttons">
+            <button type="reset" onclick="location.href='index.html'"><img src="img/home.png" alt=""
+                    class="icon"><span>Home</span></button>
+            <button type="reset" onclick="location.href='discover.html'"><img src="img/calendar.png" alt=""
+                    class="icon"><span>Discover</span></button>
+            <button type="reset" onclick="location.href='notifications.html'"><img src="img/notif.png" alt=""
+                    class="icon"><span>Notifications</span></button>
+            <button type="reset" onclick="location.href='profile.html'"><img src="img/profile.png" alt=""
+                    class="icon"><span>Profile</span></button>
+        </div>
+        <div class="nav-bottom">
+            <hr>
+            <button class="logout" type="reset" onclick="location.href='welcome.html'"><img src="img/home.png" alt=""
+                    class="icon"><span>Logout</span></button>
+        </div>
+    </nav>
+
+
+
+    <div class="gridNewTrip">
+
+        <div class="newTripMenu">
+
+            <header class="bottomMargin">
+                <h1>Create a New Trip</h1>
+                <a href="index.html">
+                    <img src="img/back.png" height="30px" width="30px">
+                </a>
+            </header>
+            <form>
+                <h3>Destination</h3>
+                <input class="bottomMargin" type="text" placeholder="Search Destinations...">
+                <div class="sideBySide">
+                    <div>
+                        <h3>From</h3>
+                        <input class="dateInput" type="date" placeholder="February 2 2026">
+                    </div>
+                    <div>
+                        <h3>To</h3>
+                        <input class="dateInput" type="date" placeholder="February 2 2026">
+                    </div>
+                </div>
+                <h3>Activities</h3>
+                <input class="bottomMargin" type="text" placeholder="Select Activities">
+                <h3>Notes</h3>
+                <textarea type="text" placeholder="Add Any Additional Info..."></textarea>
+                <div class="cancelSaveButtons">
+                    <button class="cancel" type="reset" onclick="location.href='index.html'">Cancel Trip</button>
+                    <button class="save">Save Trip</button>
+                </div>
+
+
+
+            </form>
+        </div>
+        <div class="mapArea">
+
+        </div>
+
+
+
+
+    </div>
+
+</body>
+
+</html>
