@@ -1,8 +1,14 @@
+/* ── Width override: make packing list page wider ── */
+body > main {
+    padding: 28px 40px;
+}
+
 /* Container inside existing .trips area */
 .packing-screen {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-height: 0; /* critical: allows flex child to scroll */
 }
 
 /* Summary at top (trip title + stats) */
@@ -302,6 +308,65 @@
     margin-top: 6px;
     font-size: 0.7rem;
     color: #6b7f8e;
+}
+
+/* ── Category sections ── */
+.packing-category-section {
+    margin-bottom: 24px;
+}
+
+.packing-category-header {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #113a58;
+    padding: 4px 2px 7px;
+    border-bottom: 1px solid #dde6ee;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+/* Green dot on suggested categories */
+.packing-category-header .suggested-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #5f9d30;
+    flex-shrink: 0;
+}
+
+.packing-suggested-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #5f9d30;
+    background: #e8f5e0;
+    padding: 2px 7px;
+    border-radius: 999px;
+    margin-left: 4px;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* Suggested banner at top of list */
+.packing-suggested-banner {
+    font-size: 0.78rem;
+    color: #3a6b1a;
+    background: #f0fbe8;
+    border: 1px solid #c5e8a8;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    line-height: 1.5;
+}
+
+.packing-suggested-banner strong {
+    display: block;
+    font-size: 0.8rem;
+    margin-bottom: 2px;
+    color: #2f6b24;
 }
 
 /* Responsive tweaks for mobile */

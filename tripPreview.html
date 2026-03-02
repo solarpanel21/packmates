@@ -2,93 +2,837 @@
 <html lang="en">
 
 <head>
-   <meta charset="UTF-8">
-   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   <title>Packmates</title>
-   <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packmates</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="packing-list.css">
+    <style>
+        /* Override body to allow split-view to take over the content cell */
+        body {
+            overflow: hidden;
+        }
+
+        /* The split sits inside body's 1fr grid column */
+        .tripPreviewSplit {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            /* Fill the grid cell, not the whole viewport */
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* ── LEFT PANEL ── */
+        .tripPreviewLeft {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .tripPreviewBanner {
+            height: 200px;
+            flex-shrink: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .tripPreviewMain {
+            flex: 1;
+            min-height: 0;          /* key: allows flex child to shrink & scroll */
+            overflow-y: auto;
+            padding: 24px 32px 32px;
+            background: #f1f5f8;
+        }
+
+        .tripPreviewHeader {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            gap: 12px;
+        }
+
+        .tripPreviewHeader h1 {
+            font-size: 1.4rem;
+            margin-bottom: 4px;
+        }
+
+        .tripPreviewHeader .avatars {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tripPreviewHeader .avatars p {
+            font-size: 0.8rem;
+            color: #6b7f8e;
+            margin: 0;
+        }
+
+        .tripDivider {
+            height: 4px;
+            border: none;
+            background: #dde6ee;
+            border-radius: 10px;
+            margin: 14px 0;
+        }
+
+        /* Itinerary */
+        .itinerarySection h2 {
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+
+        .itineraryList {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .itineraryItem {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: #fff;
+            border-radius: 14px;
+            padding: 10px 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .itineraryItem img {
+            width: 72px;
+            height: 72px;
+            border-radius: 10px;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .itineraryItemInfo h3 {
+            font-size: 0.9rem;
+            margin-bottom: 3px;
+        }
+
+        .itineraryItemInfo p {
+            font-size: 0.75rem;
+            color: #6b7f8e;
+        }
+
+        /* Add Activity button */
+        .addActivityBtn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #fff;
+            border: 2px dashed #cdd6de;
+            border-radius: 14px;
+            padding: 10px 14px;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            font-family: inherit;
+            margin-top: 10px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .addActivityBtn:hover {
+            border-color: #5f9d30;
+            background: #f6fdf0;
+        }
+
+        .addActivityIcon {
+            width: 72px;
+            height: 72px;
+            border-radius: 10px;
+            background: #e8f5e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: #5f9d30;
+            flex-shrink: 0;
+        }
+
+        .addActivityLabel {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #5f9d30;
+        }
+
+        /* ── RIGHT PANEL ── */
+        .tripPreviewRight {
+            background: #fff;
+            border-left: 1px solid #dde6ee;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .packingPanelHeader {
+            padding: 18px 20px 12px;
+            border-bottom: 1px solid #dde6ee;
+            flex-shrink: 0;
+        }
+
+        .packingPanelHeader h2 {
+            font-size: 0.95rem;
+            margin-bottom: 3px;
+        }
+
+        .packingPanelMeta {
+            font-size: 0.72rem;
+            color: #6b7f8e;
+        }
+
+        .packingPanelProgress {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .packingProgressBar {
+            flex: 1;
+            height: 6px;
+            background: #dde6ee;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .packingProgressFill {
+            height: 100%;
+            background: #5f9d30;
+            border-radius: 999px;
+            transition: width 0.3s;
+        }
+
+        .packingProgressText {
+            font-size: 0.72rem;
+            color: #5f9d30;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .packingPanelFilters {
+            padding: 10px 16px;
+            border-bottom: 1px solid #dde6ee;
+            flex-shrink: 0;
+        }
+
+        /* Body must scroll — min-height: 0 is the critical fix */
+        .packingPanelBody {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 12px 16px 16px;
+        }
+
+        /* Suggested banner inside the panel */
+        .packingSuggestedBanner {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #5f9d30;
+            background: #f0fbe8;
+            border-radius: 8px;
+            padding: 5px 10px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .packingCategoryGroup {
+            margin-bottom: 14px;
+        }
+
+        .packingCategoryLabel {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #113a58;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .packingCategoryLabel .suggested-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #5f9d30;
+            flex-shrink: 0;
+        }
+
+        .packingPanelItem {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 6px;
+            border-radius: 7px;
+            transition: background 0.15s;
+        }
+
+        .packingPanelItem:hover {
+            background: #f1f5f8;
+        }
+
+        .packingPanelCheck {
+            width: 15px;
+            height: 15px;
+            border-radius: 4px;
+            border: 1.5px solid #cdd6de;
+            background: #f7fafc;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .packingPanelCheck--checked {
+            background: #5f9d30;
+            border-color: #5f9d30;
+        }
+
+        .packingPanelCheck--checked::after {
+            content: "✓";
+            color: #fff;
+            font-size: 0.58rem;
+        }
+
+        .packingPanelItemName {
+            flex: 1;
+            font-size: 0.78rem;
+            color: #333;
+        }
+
+        .packingPanelItemName--packed {
+            text-decoration: line-through;
+            color: #aab4bc;
+        }
+
+        .packingPanelFooter {
+            padding: 12px 16px;
+            border-top: 1px solid #dde6ee;
+            flex-shrink: 0;
+        }
+
+        /* ── Add Activity Modal ── */
+        .activityModal {
+            position: fixed;
+            inset: 0;
+            background: rgba(17, 58, 88, 0.35);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .activityModal.is-visible {
+            display: flex;
+        }
+
+        .activityModalBox {
+            background: #fff;
+            border-radius: 14px;
+            width: 360px;
+            padding: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+        }
+
+        .activityModalHeader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .activityModalHeader h2 {
+            font-size: 1rem;
+            margin: 0;
+        }
+
+        .activityModalClose {
+            border: none;
+            background: transparent;
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+
+        .activityForm {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .activityField {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.8rem;
+            color: #4b5a66;
+        }
+
+        .activityField input,
+        .activityField select {
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid #cdd6de;
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+            margin: 0;
+            width: 100%;
+        }
+
+        .activityField input:focus,
+        .activityField select:focus {
+            border-color: #5f9d30;
+        }
+
+        .activityModalActions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 6px;
+        }
+    </style>
 </head>
 
 <body>
-   <!--Side Navbar (keep on all pages)-->
-   <nav class="sidebar">
-      <div class="brand">
-         <img src="img/appIcon.png" alt="Packmates" class="icon">
-         <span>Packmates</span>
-      </div>
-      <div class="nav-buttons">
-         <button type="reset" onclick="location.href='index.html'"><img src="img/home.png" alt=""
-               class="icon"><span>Home</span></button>
-         <button type="reset" onclick="location.href='discover.html'"><img src="img/calendar.png" alt=""
-               class="icon"><span>Discover</span></button>
-         <button type="reset" onclick="location.href='notifications.html'"><img src="img/notif.png" alt=""
-               class="icon"><span>Notifications</span></button>
-         <button type="reset" onclick="location.href='profile.html'"><img src="img/profile.png" alt=""
-               class="icon"><span>Profile</span></button>
-      </div>
-      <div class="nav-bottom">
-         <hr>
-         <button class="logout" type="reset" onclick="location.href='welcome.html'"><img src="img/home.png" alt=""
-               class="icon"><span>Logout</span></button>
-      </div>
-   </nav>
+    <nav class="sidebar">
+        <div class="brand">
+            <img src="img/appIcon.png" alt="Packmates" class="icon">
+            <span>Packmates</span>
+        </div>
+        <div class="nav-buttons">
+            <button type="reset" onclick="location.href='index.html'"><img src="img/home.png" alt=""
+                    class="icon"><span>Home</span></button>
+            <button type="reset" onclick="location.href='discover.html'"><img src="img/calendar.png" alt=""
+                    class="icon"><span>Discover</span></button>
+            <button type="reset" onclick="location.href='notifications.html'"><img src="img/notif.png" alt=""
+                    class="icon"><span>Notifications</span></button>
+            <button type="reset" onclick="location.href='profile.html'"><img src="img/profile.png" alt=""
+                    class="icon"><span>Profile</span></button>
+        </div>
+        <div class="nav-bottom">
+            <hr>
+            <button class="logout" type="reset" onclick="location.href='welcome.html'"><img src="img/home.png" alt=""
+                    class="icon"><span>Logout</span></button>
+        </div>
+    </nav>
 
+    <div class="tripPreviewSplit">
 
-   <div class="gridTripPreview">
-      <div style="background-image: url(img/tripPreviewBanner.jpg)" class="tripPreviewBanner">
+        <!-- LEFT: Preview + Itinerary -->
+        <div class="tripPreviewLeft">
+            <div style="background-image: url(img/tripPreviewBanner.jpg)" class="tripPreviewBanner"></div>
 
-      </div>
-      <main>
-         <header class="tripPreviewHeader">
-            <div>
-               <h1>NYC Trip</h1>
-               <div class="avatars"><span></span><span></span>
-                  <p>4/13/2026 - 12/25/2026</p>
-               </div>
+            <div class="tripPreviewMain">
+                <div class="tripPreviewHeader">
+                    <div>
+                        <h1 id="tripTitleDisplay">Trip</h1>
+                        <div class="avatars">
+                            <span></span><span></span>
+                            <p id="tripDatesDisplay"></p>
+                        </div>
+                    </div>
+                    <button class="primary" type="button" onclick="location.href='packing-list.html'">
+                        Full Packing List
+                    </button>
+                </div>
+
+                <hr class="tripDivider">
+
+                <section class="itinerarySection">
+                    <h2>Trip Itinerary</h2>
+                    <div class="itineraryList" id="itineraryList"></div>
+                    <button class="addActivityBtn" id="openActivityModal">
+                        <div class="addActivityIcon">＋</div>
+                        <span class="addActivityLabel">Add Activity</span>
+                    </button>
+                </section>
             </div>
-            <button class="primary" type="reset" onclick="location.href='packing-list.html'">Your Packing
-               List</button>
-         </header>
-         <hr>
-         <article>
-            <h1>Trip Itinerary</h1>
-            <ul>
-               <li>
-                  <img src="img/tripPreviewBanner.jpg" height="150px" width="150px">
-                  <div>
-                     <h2>Central Park</h2>
-                     <p>Walking Activity</p>
-                  </div>
-               </li>
-               <li>
-                  <img src="img/tripPreviewBanner.jpg" height="150px" width="150px">
-                  <div>
-                     <h2>Central Park</h2>
-                     <p>Walking Activity</p>
-                  </div>
-               </li>
-               <li>
-                  <img src="img/tripPreviewBanner.jpg" height="150px" width="150px">
-                  <div>
-                     <h2>Central Park</h2>
-                     <p>Walking Activity</p>
-                  </div>
-               </li>
-               <li>
-                  <img src="img/plusPlaceholder.jpg" height="150px" width="150px">
-                  <div>
-                     <h2>Add Activity</h2>
-                  </div>
-               </li>
-            </ul>
+        </div>
 
+        <!-- RIGHT: Packing List Panel -->
+        <div class="tripPreviewRight">
+            <div class="packingPanelHeader">
+                <h2 id="packingPanelTitle">Packing List</h2>
+                <div class="packingPanelMeta" id="packingPanelMeta"></div>
+                <div class="packingPanelProgress">
+                    <div class="packingProgressBar">
+                        <div class="packingProgressFill" id="packingProgressFill" style="width:0%"></div>
+                    </div>
+                    <span class="packingProgressText" id="packingProgressText">0 packed</span>
+                </div>
+            </div>
 
-         </article>
-      </main>
+            <div class="packingPanelFilters">
+                <div class="packing-filters">
+                    <button class="packing-filter-btn packing-filter-btn--active" data-filter="all">All</button>
+                    <button class="packing-filter-btn" data-filter="not-packed">Unpacked</button>
+                    <button class="packing-filter-btn" data-filter="packed">Packed</button>
+                </div>
+            </div>
 
+            <div class="packingPanelBody" id="packingPanelBody"></div>
 
-   </div>
+            <div class="packingPanelFooter">
+                <button class="primary" style="width:100%;font-family:inherit"
+                    onclick="location.href='packing-list.html'">
+                    View Full Packing List →
+                </button>
+            </div>
+        </div>
+    </div>
 
+    <!-- Add Activity Modal -->
+    <div class="activityModal" id="activityModal">
+        <div class="activityModalBox">
+            <div class="activityModalHeader">
+                <h2>Add Activity</h2>
+                <button class="activityModalClose" id="closeActivityModal">✕</button>
+            </div>
+            <form class="activityForm" id="activityForm">
+                <label class="activityField">
+                    <span>Activity Name</span>
+                    <input type="text" id="activityName" placeholder="e.g. Central Park Walk">
+                </label>
+                <label class="activityField">
+                    <span>Type</span>
+                    <select id="activityType">
+                        <option>Sightseeing</option>
+                        <option>Walking Activity</option>
+                        <option>Food & Dining</option>
+                        <option>Adventure</option>
+                        <option>Cultural</option>
+                        <option>Beach</option>
+                        <option>Shopping</option>
+                        <option>Other</option>
+                    </select>
+                </label>
+                <div class="activityModalActions">
+                    <button type="button" class="packing-btn-secondary" id="cancelActivity">Cancel</button>
+                    <button type="submit" class="packing-btn-primary">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
+    <script>
+        // ── Item database (same logic as packing-list.js) ──
+        const ITEM_DB = {
+            'Essentials': [
+                { name: 'Passport' }, { name: 'ID' }, { name: 'Cash' }, { name: 'Credit Card' },
+                { name: 'Phone' }, { name: 'Charger' }, { name: 'Headphones' },
+                { name: 'Power Bank' }, { name: 'Travel Adapter' }, { name: 'Keys' },
+            ],
+            'Toiletries': [
+                { name: 'Toothbrush' }, { name: 'Toothpaste' }, { name: 'Shampoo' },
+                { name: 'Body Wash' }, { name: 'Deodorant' }, { name: 'Razor' },
+                { name: 'Moisturizer' },
+                { name: 'Sunscreen',  when: p => p.hot || p.beach || p.hiking },
+                { name: 'Lip Balm',   when: p => p.cold || p.snowy },
+                { name: 'Hair Brush' },
+            ],
+            'Clothing': [
+                { name: 'T-Shirts' },
+                { name: 'Tank Tops',          when: p => p.hot || p.beach || p.gym },
+                { name: 'Long Sleeve Shirts', when: p => !p.hot || p.hiking },
+                { name: 'Hoodie',             when: p => !p.hot && !p.beach },
+                { name: 'Sweater',            when: p => p.cold || p.snowy },
+                { name: 'Jeans',              when: p => !p.hot && !p.beach },
+                { name: 'Pants',              when: p => !p.beach || p.business },
+                { name: 'Shorts',             when: p => p.hot || p.beach || p.gym },
+                { name: 'Swimsuit',           when: p => p.beach || p.swimming },
+                { name: 'Dress / Skirt',      when: p => p.hot || p.beach || p.business },
+                { name: 'Jacket',             when: p => !p.hot && !p.beach },
+                { name: 'Rain Jacket',        when: p => p.rainy || p.hiking || p.camping },
+                { name: 'Winter Coat',        when: p => p.cold || p.snowy },
+                { name: 'Underwear' }, { name: 'Socks' }, { name: 'Pajamas' },
+                { name: 'Sports Bra',         when: p => p.gym || p.beach || p.hiking },
+                { name: 'Thermal Underwear',  when: p => p.cold || p.snowy || p.ski },
+                { name: 'Scarf',              when: p => p.cold || p.snowy },
+                { name: 'Gloves',             when: p => p.cold || p.snowy || p.ski },
+                { name: 'Beanie',             when: p => p.cold || p.snowy || p.ski },
+            ],
+            'Shoes': [
+                { name: 'Sneakers' },
+                { name: 'Sandals',     when: p => p.hot || p.beach },
+                { name: 'Flip Flops',  when: p => p.beach || p.swimming },
+                { name: 'Boots',       when: p => p.cold || p.hiking },
+                { name: 'Snow Boots',  when: p => p.snowy },
+                { name: 'Ski Boots',   when: p => p.ski },
+                { name: 'Dress Shoes', when: p => p.business },
+            ],
+            'Electronics': [
+                { name: 'Camera',         when: p => !p.business },
+                { name: 'Laptop',         when: p => p.business },
+                { name: 'Laptop Charger', when: p => p.business },
+                { name: 'Earbuds' },
+            ],
+            'Beach': [
+                { name: 'Beach Towel',  when: p => p.beach },
+                { name: 'Sunglasses',   when: p => p.beach || p.hot },
+                { name: 'Sun Hat',      when: p => p.beach || p.hot },
+                { name: 'Waterproof Bag', when: p => p.beach },
+                { name: 'Snorkel Set',  when: p => p.beach || p.swimming },
+            ],
+            'Hiking': [
+                { name: 'Trekking Poles',   when: p => p.hiking },
+                { name: 'Backpack',         when: p => p.hiking || p.camping },
+                { name: 'Insect Repellent', when: p => p.hiking || p.camping },
+                { name: 'Trail Snacks',     when: p => p.hiking || p.camping },
+                { name: 'Headlamp',         when: p => p.hiking || p.camping },
+            ],
+            'Snow Sports': [
+                { name: 'Ski Jacket',   when: p => p.ski },
+                { name: 'Ski Pants',    when: p => p.ski },
+                { name: 'Ski Goggles',  when: p => p.ski },
+                { name: 'Hand Warmers', when: p => p.ski || p.cold },
+                { name: 'Wool Socks',   when: p => p.ski || p.cold },
+            ],
+            'Rain Gear': [
+                { name: 'Compact Umbrella', when: p => p.rainy },
+                { name: 'Rain Poncho',      when: p => p.rainy },
+                { name: 'Waterproof Shoes', when: p => p.rainy },
+            ],
+            'Sun & Heat': [
+                { name: 'Reusable Water Bottle', when: p => p.hot || p.beach || p.hiking },
+                { name: 'Cooling Towel',         when: p => p.hot },
+                { name: 'Electrolyte Packets',   when: p => p.hot },
+            ],
+            'Business Trip': [
+                { name: 'Dress Shirts',   when: p => p.business },
+                { name: 'Blazer',         when: p => p.business },
+                { name: 'Business Cards', when: p => p.business },
+                { name: 'Notebook',       when: p => p.business },
+            ],
+        };
+
+        // ── Destination lists ──
+        const BEACH_DESTS   = ['miami','hawaii','bali','cancun','maldives','ibiza','florida','bahamas','caribbean','phuket','tulum','cabo','st. lucia','dominican','jamaica','aruba','barbados','key west','malibu','santa monica','san diego','costa rica','rio'];
+        const SKI_DESTS     = ['aspen','vail','whistler','verbier','zermatt','alps','jackson hole','tahoe','banff','park city','breckenridge','steamboat','telluride','killington'];
+        const ALWAYS_COLD   = ['alaska','iceland','norway','sweden','finland','greenland','lapland','siberia','antarctica'];
+        const RAINY_DESTS   = ['london','amsterdam','portland','seattle','dublin','edinburgh','vancouver','brussels','glasgow','bergen'];
+        const HOT_DRY_DESTS = ['las vegas','phoenix','dubai','doha','riyadh','cairo','marrakech','tucson','palm springs'];
+        const FOUR_SEASON   = ['new york','nyc','chicago','boston','montreal','toronto','moscow','berlin','warsaw','denver','minneapolis','detroit','cleveland','buffalo','milwaukee','philadelphia','pittsburgh','cincinnati','columbus','indianapolis','kansas city','st. louis','omaha','baltimore','washington','paris','vienna','budapest','prague','milan','zurich','munich'];
+
+        function buildTripProfile(td) {
+            const dest  = (td.destination || '').toLowerCase();
+            const month = td.fromDate ? new Date(td.fromDate).getMonth() + 1 : null;
+            const sel   = td.activityCategories || [];
+
+            const isBeachDest  = BEACH_DESTS.some(k => dest.includes(k));
+            const isSkiDest    = SKI_DESTS.some(k => dest.includes(k));
+            const isFourSeason = FOUR_SEASON.some(c => dest.includes(c));
+
+            let hot   = isBeachDest || HOT_DRY_DESTS.some(k => dest.includes(k));
+            let cold  = ALWAYS_COLD.some(k => dest.includes(k)) || isSkiDest;
+            let snowy = cold;
+            let rainy = RAINY_DESTS.some(k => dest.includes(k));
+
+            if (month && isFourSeason && !isBeachDest && !isSkiDest) {
+                hot   = [6,7,8].includes(month);
+                cold  = [11,12,1,2,3].includes(month);
+                snowy = [12,1,2].includes(month);
+                rainy = [4,5,9,10].includes(month);
+            }
+
+            const beach    = isBeachDest || sel.includes('Beach');
+            const ski      = isSkiDest   || sel.includes('Snow Sports');
+            const hiking   = sel.includes('Hiking');
+            const camping  = sel.includes('Camping');
+            const swimming = beach || sel.includes('Swimming');
+            const gym      = sel.includes('Gym');
+            const business = sel.includes('Business Trip');
+
+            if (beach) hot = true;
+            if (ski)  { cold = true; snowy = true; }
+
+            return { hot, cold, snowy, rainy, beach, ski, hiking, camping, swimming, gym, business };
+        }
+
+        function itemMatches(item, p) {
+            return item.when ? item.when(p) : true;
+        }
+
+        // ── Load data ──
+        const tripData    = JSON.parse(localStorage.getItem('currentTrip') || '{}');
+        const profile     = buildTripProfile(tripData);
+        const destination = tripData.destination || 'NYC Trip';
+        const fromDate    = tripData.fromDate    || '';
+        const toDate      = tripData.toDate      || '';
+        const travelers   = tripData.travelers   || 2;
+        const dismissed   = new Set(JSON.parse(localStorage.getItem('packingDismissed') || '[]'));
+        const packingState= JSON.parse(localStorage.getItem('packingState') || '{}');
+
+        function getItemKey(cat, name) { return `${cat}::${name}`; }
+        function formatDate(d) {
+            if (!d) return '';
+            const [y, m, day] = d.split('-');
+            return `${parseInt(m)}/${parseInt(day)}/${y}`;
+        }
+
+        // ── Header ──
+        document.getElementById('tripTitleDisplay').textContent = destination;
+        if (fromDate && toDate) {
+            document.getElementById('tripDatesDisplay').textContent = `${formatDate(fromDate)} – ${formatDate(toDate)}`;
+        }
+        document.getElementById('packingPanelTitle').textContent = destination;
+        const metaParts = [];
+        if (fromDate && toDate) metaParts.push(`${formatDate(fromDate)} – ${formatDate(toDate)}`);
+        metaParts.push(`${travelers} traveler${travelers !== 1 ? 's' : ''}`);
+        document.getElementById('packingPanelMeta').textContent = metaParts.join(' · ');
+
+        // ── Profile badge line ──
+        const badges = [];
+        if (profile.hot)      badges.push('☀️ Warm');
+        if (profile.cold)     badges.push('🧊 Cold');
+        if (profile.snowy)    badges.push('❄️ Snowy');
+        if (profile.rainy)    badges.push('🌧️ Rainy');
+        if (profile.beach)    badges.push('🏖️ Beach');
+        if (profile.ski)      badges.push('⛷️ Ski');
+        if (profile.hiking)   badges.push('🥾 Hiking');
+        if (profile.business) badges.push('💼 Business');
+
+        // ── Activities ──
+        let activities = tripData.activities && tripData.activities.length
+            ? tripData.activities
+            : [{ name: 'Central Park', type: 'Sightseeing' }, { name: 'Times Square', type: 'Sightseeing' }];
+
+        function saveActivities() {
+            const saved = JSON.parse(localStorage.getItem('currentTrip') || '{}');
+            saved.activities = activities;
+            localStorage.setItem('currentTrip', JSON.stringify(saved));
+        }
+
+        function renderItinerary() {
+            const list = document.getElementById('itineraryList');
+            list.innerHTML = '';
+            activities.forEach(act => {
+                const item = document.createElement('div');
+                item.className = 'itineraryItem';
+                item.innerHTML = `
+                    <img src="img/tripPreviewBanner.jpg" alt="${act.name}">
+                    <div class="itineraryItemInfo"><h3>${act.name}</h3><p>${act.type}</p></div>`;
+                list.appendChild(item);
+            });
+        }
+        renderItinerary();
+
+        const activityModal = document.getElementById('activityModal');
+        document.getElementById('openActivityModal').addEventListener('click',  () => activityModal.classList.add('is-visible'));
+        document.getElementById('closeActivityModal').addEventListener('click', () => activityModal.classList.remove('is-visible'));
+        document.getElementById('cancelActivity').addEventListener('click',     () => activityModal.classList.remove('is-visible'));
+        document.getElementById('activityForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const name = document.getElementById('activityName').value.trim();
+            const type = document.getElementById('activityType').value;
+            if (!name) return;
+            activities.push({ name, type });
+            saveActivities();
+            renderItinerary();
+            document.getElementById('activityName').value = '';
+            activityModal.classList.remove('is-visible');
+        });
+
+        // ── Packing panel ──
+        function getSuggestedItems() {
+            const result = [];
+            Object.entries(ITEM_DB).forEach(([cat, items]) => {
+                items.forEach(item => {
+                    const key = getItemKey(cat, item.name);
+                    if (itemMatches(item, profile) && !dismissed.has(key))
+                        result.push({ cat, name: item.name, key });
+                });
+            });
+            return result;
+        }
+
+        function updateProgress() {
+            const all    = getSuggestedItems();
+            const packed = all.filter(({ key }) => !!packingState[key]).length;
+            const pct    = all.length ? Math.round(packed / all.length * 100) : 0;
+            document.getElementById('packingProgressFill').style.width = pct + '%';
+            document.getElementById('packingProgressText').textContent = `${packed}/${all.length} packed`;
+        }
+
+        let currentFilter = 'all';
+
+        function renderPackingPanel() {
+            const body = document.getElementById('packingPanelBody');
+            body.innerHTML = '';
+
+            // Profile badges
+            if (badges.length) {
+                const b = document.createElement('div');
+                b.className = 'packingSuggestedBanner';
+                b.textContent = badges.join('  ');
+                body.appendChild(b);
+            }
+
+            // Render each category — only suggested + not dismissed items
+            Object.entries(ITEM_DB).forEach(([cat, dbItems]) => {
+                const items = dbItems.filter(item => {
+                    const key    = getItemKey(cat, item.name);
+                    const passes = itemMatches(item, profile) && !dismissed.has(key);
+                    if (!passes) return false;
+                    const packed = !!packingState[key];
+                    if (currentFilter === 'packed')     return packed;
+                    if (currentFilter === 'not-packed') return !packed;
+                    return true;
+                });
+                if (!items.length) return;
+
+                const group = document.createElement('div');
+                group.className = 'packingCategoryGroup';
+                group.innerHTML = `<div class="packingCategoryLabel"><span class="suggested-dot"></span>${cat}</div>`;
+
+                items.forEach(item => {
+                    const key    = getItemKey(cat, item.name);
+                    const packed = !!packingState[key];
+                    const row    = document.createElement('div');
+                    row.className = 'packingPanelItem';
+                    row.innerHTML = `
+                        <button class="packingPanelCheck ${packed ? 'packingPanelCheck--checked' : ''}"></button>
+                        <span class="packingPanelItemName ${packed ? 'packingPanelItemName--packed' : ''}">${item.name}</span>
+                        <button class="panel-dismiss" data-key="${key}" title="Remove" style="width:16px;height:16px;border-radius:50%;border:none;background:#fdecea;cursor:pointer;color:#c0392b;font-size:0.65rem;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;">✕</button>`;
+                    row.querySelector('.packingPanelCheck').addEventListener('click', () => {
+                        packingState[key] = !packingState[key];
+                        localStorage.setItem('packingState', JSON.stringify(packingState));
+                        renderPackingPanel();
+                        updateProgress();
+                    });
+                    row.querySelector('.panel-dismiss').addEventListener('click', () => {
+                        dismissed.add(key);
+                        localStorage.setItem('packingDismissed', JSON.stringify([...dismissed]));
+                        renderPackingPanel();
+                        updateProgress();
+                    });
+                    group.appendChild(row);
+                });
+                body.appendChild(group);
+            });
+        }
+
+        document.querySelectorAll('.packing-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.packing-filter-btn').forEach(b => b.classList.remove('packing-filter-btn--active'));
+                btn.classList.add('packing-filter-btn--active');
+                currentFilter = btn.dataset.filter;
+                renderPackingPanel();
+            });
+        });
+
+        renderPackingPanel();
+        updateProgress();
+    </script>
 </body>
 
 </html>

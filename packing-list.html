@@ -35,9 +35,9 @@
 
     <main>
         <header>
-            <h1>Packing List</h1>
-            <button class="primary" type="button" onclick="location.href='index.html'">
-                Back to Trips
+            <h1 id="packingListTitle">Packing List</h1>
+            <button class="primary" type="button" onclick="location.href='tripPreview.html'">
+                ← Back to Trip
             </button>
         </header>
 
@@ -45,158 +45,82 @@
             <!-- Trip summary -->
             <div class="packing-summary">
                 <div>
-                    <h2>NYC Trip</h2>
-                    <p class="packing-sub">
-                        Feb 21–24 · 4 days · 2 travelers
-                    </p>
+                    <h2 id="packingSummaryTitle">Trip</h2>
+                    <p class="packing-sub" id="packingSummaryMeta"></p>
                 </div>
                 <div class="packing-summary-count">
-                    <span class="packing-count-main">3/5 packed</span>
-                    <span class="packing-count-sub">2 items left</span>
+                    <span class="packing-count-main" id="packedCount">0/0 packed</span>
+                    <span class="packing-count-sub" id="unpackedCount">0 items left</span>
                 </div>
             </div>
 
             <!-- Filters + Add item -->
             <div class="packing-controls">
                 <div class="packing-filters">
-                    <button class="packing-filter-btn packing-filter-btn--active" data-filter="all">
-                        All
-                    </button>
-                    <button class="packing-filter-btn" data-filter="not-packed">
-                        Not packed
-                    </button>
-                    <button class="packing-filter-btn" data-filter="packed">
-                        Packed
-                    </button>
+                    <button class="packing-filter-btn packing-filter-btn--active" data-filter="all">All</button>
+                    <button class="packing-filter-btn" data-filter="not-packed">Not packed</button>
+                    <button class="packing-filter-btn" data-filter="packed">Packed</button>
                 </div>
-
-                <button class="packing-add-btn" id="openAddItemModal">
-                    + Add item
-                </button>
+                <button class="packing-add-btn" id="openAddItemModal">+ Add item</button>
             </div>
 
-            <!-- Packing list items -->
-            <div class="packing-list" aria-label="Packing items">
-                <article class="packing-item" data-status="not-packed">
-                    <button class="packing-check" aria-label="Mark as packed"></button>
-                    <div class="packing-item-content">
-                        <div class="packing-item-top">
-                            <h3 class="packing-item-name">T-shirts</h3>
-                            <span class="packing-quantity">x3</span>
-                        </div>
-                        <div class="packing-item-meta">
-                            <span class="packing-tag">Clothing</span>
-                            <span class="packing-status packing-status--not-packed">Not packed</span>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="packing-item packing-item--packed" data-status="packed">
-                    <button class="packing-check packing-check--checked" aria-label="Mark as not packed"></button>
-                    <div class="packing-item-content">
-                        <div class="packing-item-top">
-                            <h3 class="packing-item-name">Toiletry bag</h3>
-                            <span class="packing-quantity">x1</span>
-                        </div>
-                        <div class="packing-item-meta">
-                            <span class="packing-tag">Toiletries</span>
-                            <span class="packing-status packing-status--packed">Packed</span>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="packing-item" data-status="not-packed">
-                    <button class="packing-check" aria-label="Mark as packed"></button>
-                    <div class="packing-item-content">
-                        <div class="packing-item-top">
-                            <h3 class="packing-item-name">Phone charger</h3>
-                            <span class="packing-quantity">x1</span>
-                        </div>
-                        <div class="packing-item-meta">
-                            <span class="packing-tag">Tech</span>
-                            <span class="packing-status packing-status--not-packed">Not packed</span>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="packing-item" data-status="packed">
-                    <button class="packing-check packing-check--checked" aria-label="Mark as not packed"></button>
-                    <div class="packing-item-content">
-                        <div class="packing-item-top">
-                            <h3 class="packing-item-name">Passport</h3>
-                            <span class="packing-quantity">x1</span>
-                        </div>
-                        <div class="packing-item-meta">
-                            <span class="packing-tag">Documents</span>
-                            <span class="packing-status packing-status--packed">Packed</span>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="packing-item" data-status="not-packed">
-                    <button class="packing-check" aria-label="Mark as packed"></button>
-                    <div class="packing-item-content">
-                        <div class="packing-item-top">
-                            <h3 class="packing-item-name">Sneakers</h3>
-                            <span class="packing-quantity">x2</span>
-                        </div>
-                        <div class="packing-item-meta">
-                            <span class="packing-tag">Clothing</span>
-                            <span class="packing-status packing-status--not-packed">Not packed</span>
-                        </div>
-                    </div>
-                </article>
+            <!-- Packing list items (rendered by JS, grouped by category) -->
+            <div class="packing-list" id="packingListBody" aria-label="Packing items">
             </div>
         </section>
     </main>
 
-    <!-- Add item modal (UI only) -->
+    <!-- Add item modal -->
     <div class="packing-modal-backdrop" id="addItemModal" aria-hidden="true">
         <div class="packing-modal" role="dialog" aria-modal="true" aria-labelledby="addItemTitle">
             <div class="packing-modal-header">
                 <h2 id="addItemTitle">Add item</h2>
-                <button class="packing-modal-close" id="closeAddItemModal" aria-label="Close">
-                    ✕
-                </button>
+                <button class="packing-modal-close" id="closeAddItemModal" aria-label="Close">✕</button>
             </div>
 
-            <form class="packing-form">
+            <form class="packing-form" id="addItemForm">
                 <label class="packing-field">
                     <span>Item name</span>
-                    <input type="text" placeholder="e.g. Sneakers">
+                    <input type="text" id="newItemName" placeholder="e.g. Sneakers">
                 </label>
 
                 <label class="packing-field">
                     <span>Category</span>
-                    <select>
-                        <option>Clothing</option>
+                    <select id="newItemCategory">
+                        <option>Essentials</option>
                         <option>Toiletries</option>
-                        <option>Tech</option>
-                        <option>Documents</option>
-                        <option>Other</option>
+                        <option>Clothing</option>
+                        <option>Shoes</option>
+                        <option>Electronics</option>
+                        <option>Business Trip</option>
+                        <option>Gym</option>
+                        <option>Beach</option>
+                        <option>Swimming</option>
+                        <option>Snow Sports</option>
+                        <option>Hiking</option>
+                        <option>Camping</option>
+                        <option>Rainy Weather</option>
+                        <option>Hot &amp; Sunny Weather</option>
+                        <option>Snowy Weather</option>
+                        <option>Windy Weather</option>
+                        <option>Cold Weather</option>
                     </select>
                 </label>
 
                 <label class="packing-field packing-field--inline">
                     <span>Quantity</span>
-                    <input type="number" min="1" value="1">
+                    <input type="number" id="newItemQty" min="1" value="1">
                 </label>
 
                 <div class="packing-modal-actions">
-                    <button type="button" class="packing-btn-secondary" id="cancelAddItem">
-                        Cancel
-                    </button>
-                    <button type="submit" class="packing-btn-primary">
-                        Save (UI only)
-                    </button>
+                    <button type="button" class="packing-btn-secondary" id="cancelAddItem">Cancel</button>
+                    <button type="submit" class="packing-btn-primary">Add Item</button>
                 </div>
             </form>
-
-            <p class="packing-helper-text">
-                For this milestone, this
-            </p>
         </div>
     </div>
+
+    <script src="packing-list.js"></script>
 </body>
 
 </html>

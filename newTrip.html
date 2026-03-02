@@ -6,10 +6,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Packmates</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .activity-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0 20px;
+        }
+
+        .activity-chip {
+            padding: 6px 14px;
+            border-radius: 999px;
+            border: 1.5px solid #cdd6de;
+            background: #f7fafc;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-family: inherit;
+            color: #4b5a66;
+            transition: all 0.15s;
+            margin: 0;
+            width: auto;
+        }
+
+        .activity-chip.selected {
+            background: #e8f5e0;
+            border-color: #5f9d30;
+            color: #3a6b1a;
+            font-weight: 600;
+        }
+
+        .activity-chip:hover:not(.selected) {
+            border-color: #99a8b4;
+            background: #edf2f7;
+        }
+    </style>
 </head>
 
 <body>
-    <!--Side Navbar (keep on all pages)-->
+    <!--Side Navbar-->
     <nav class="sidebar">
         <div class="brand">
             <img src="img/appIcon.png" alt="Packmates" class="icon">
@@ -32,53 +66,91 @@
         </div>
     </nav>
 
-
-
     <div class="gridNewTrip">
-
         <div class="newTripMenu">
-
             <header class="bottomMargin">
                 <h1>Create a New Trip</h1>
                 <a href="index.html">
                     <img src="img/back.png" height="30px" width="30px">
                 </a>
             </header>
-            <form>
+
+            <form id="newTripForm">
                 <h3>Destination</h3>
-                <input class="bottomMargin" type="text" placeholder="Search Destinations...">
+                <input id="tripDestination" class="bottomMargin" type="text" placeholder="Search Destinations...">
+
                 <div class="sideBySide">
                     <div>
                         <h3>From</h3>
-                        <input class="dateInput" type="date" placeholder="February 2 2026">
+                        <input id="tripFromDate" class="dateInput" type="date">
                     </div>
                     <div>
                         <h3>To</h3>
-                        <input class="dateInput" type="date" placeholder="February 2 2026">
+                        <input id="tripToDate" class="dateInput" type="date">
                     </div>
                 </div>
-                <h3>Activities</h3>
-                <input class="bottomMargin" type="text" placeholder="Select Activities">
-                <h3>Notes</h3>
-                <textarea type="text" placeholder="Add Any Additional Info..."></textarea>
-                <div class="cancelSaveButtons">
-                    <button class="cancel" type="reset" onclick="location.href='index.html'">Cancel Trip</button>
-                    <button class="save">Save Trip</button>
+
+                <h3>Travelers</h3>
+                <input id="tripTravelers" class="bottomMargin" type="number" min="1" value="1" placeholder="Number of travelers">
+
+                <h3>Trip Type & Activities</h3>
+                <div class="activity-chips" id="activityChips">
+                    <button type="button" class="activity-chip" data-category="Beach">🏖️ Beach</button>
+                    <button type="button" class="activity-chip" data-category="Hiking">🥾 Hiking</button>
+                    <button type="button" class="activity-chip" data-category="Camping">⛺ Camping</button>
+                    <button type="button" class="activity-chip" data-category="Gym">💪 Gym</button>
+                    <button type="button" class="activity-chip" data-category="Swimming">🏊 Swimming</button>
+                    <button type="button" class="activity-chip" data-category="Snow Sports">⛷️ Snow Sports</button>
+                    <button type="button" class="activity-chip" data-category="Business Trip">💼 Business</button>
                 </div>
 
+                <h3>Itinerary Activities</h3>
+                <input id="tripActivities" class="bottomMargin" type="text" placeholder="e.g. Central Park, Times Square (comma separated)">
 
+                <h3>Notes</h3>
+                <textarea id="tripNotes" placeholder="Add Any Additional Info..."></textarea>
 
+                <div class="cancelSaveButtons">
+                    <button class="cancel" type="button" onclick="location.href='index.html'">Cancel Trip</button>
+                    <button class="save" type="button" id="saveTripBtn">Save Trip</button>
+                </div>
             </form>
         </div>
-        <div class="mapArea">
-
-        </div>
-
-
-
-
+        <div class="mapArea"></div>
     </div>
 
+    <script>
+        // Activity chip toggle
+        document.querySelectorAll('.activity-chip').forEach(chip => {
+            chip.addEventListener('click', () => chip.classList.toggle('selected'));
+        });
+
+        document.getElementById('saveTripBtn').addEventListener('click', function () {
+            const destination = document.getElementById('tripDestination').value.trim();
+            const fromDate = document.getElementById('tripFromDate').value;
+            const toDate = document.getElementById('tripToDate').value;
+            const travelers = parseInt(document.getElementById('tripTravelers').value) || 1;
+            const activitiesRaw = document.getElementById('tripActivities').value;
+            const notes = document.getElementById('tripNotes').value;
+
+            if (!destination) { alert('Please enter a destination.'); return; }
+
+            // Selected activity category chips
+            const activityCategories = Array.from(document.querySelectorAll('.activity-chip.selected'))
+                .map(el => el.dataset.category);
+
+            // Free-text itinerary activities
+            const activities = activitiesRaw
+                .split(',')
+                .map(a => a.trim())
+                .filter(a => a.length > 0)
+                .map(name => ({ name, type: 'Activity' }));
+
+            const tripData = { destination, fromDate, toDate, travelers, activityCategories, activities, notes };
+            localStorage.setItem('currentTrip', JSON.stringify(tripData));
+            location.href = 'tripPreview.html';
+        });
+    </script>
 </body>
 
 </html>
