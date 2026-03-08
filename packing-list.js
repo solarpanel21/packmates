@@ -240,6 +240,13 @@ function buildTripProfile(tripData) {
 const tripData = JSON.parse(localStorage.getItem('currentTrip') || '{}');
 const profile  = buildTripProfile(tripData);
 
+// City banner image
+const cityBanner = document.getElementById('cityBanner');
+if (cityBanner && tripData.imageUrl) {
+    cityBanner.style.backgroundImage = `url('${tripData.imageUrl}')`;
+    cityBanner.style.display = 'block';
+}
+
 const destination = tripData.destination || 'Trip';
 const fromDate    = tripData.fromDate    || '';
 const toDate      = tripData.toDate      || '';

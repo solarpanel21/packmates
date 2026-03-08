@@ -662,8 +662,30 @@
             return item.when ? item.when(p) : true;
         }
 
+        // ── Pexels image fetch ──
+        const PEXELS_KEY = 'vnk5OqRIBUtBdRV9LUp1oaAn2QiAB5lO0HL8GwM5WrRRQZt5GOaFlVIq';
+
+        async function fetchActivityImage(activityName, city) {
+            try {
+                const query = `${activityName} ${city}`;
+                const res = await fetch(
+                    `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&orientation=landscape&per_page=1&size=large`,
+                    { headers: { Authorization: PEXELS_KEY } }
+                );
+                const data = await res.json();
+                return data.photos?.[0]?.src?.large || null;
+            } catch {
+                return null;
+            }
+        }
+
         // ── Load data ──
         const tripData    = JSON.parse(localStorage.getItem('currentTrip') || '{}');
+
+        // Apply city image to banner if available
+        if (tripData.imageUrl) {
+            document.querySelector('.tripPreviewBanner').style.backgroundImage = `url('${tripData.imageUrl}')`;
+        }
         const profile     = buildTripProfile(tripData);
         const destination = tripData.destination || 'NYC Trip';
         const fromDate    = tripData.fromDate    || '';
@@ -702,9 +724,72 @@
         if (profile.business) badges.push('💼 Business');
 
         // ── Activities ──
+        const CITY_DEFAULTS = {
+            'amsterdam':     ['Rijksmuseum', 'Anne Frank House', 'Canal Ring'],
+            'paris':         ['Eiffel Tower', 'Louvre Museum', 'Notre Dame'],
+            'new york':      ['Central Park', 'Times Square', 'Brooklyn Bridge'],
+            'nyc':           ['Central Park', 'Times Square', 'Brooklyn Bridge'],
+            'london':        ['Big Ben', 'Tower of London', 'Buckingham Palace'],
+            'rome':          ['Colosseum', 'Vatican City', 'Trevi Fountain'],
+            'barcelona':     ['Sagrada Familia', 'Park Güell', 'Las Ramblas'],
+            'tokyo':         ['Shibuya Crossing', 'Senso-ji Temple', 'Shinjuku'],
+            'dubai':         ['Burj Khalifa', 'Dubai Mall', 'Palm Jumeirah'],
+            'sydney':        ['Sydney Opera House', 'Harbour Bridge', 'Bondi Beach'],
+            'istanbul':      ['Hagia Sophia', 'Grand Bazaar', 'Topkapi Palace'],
+            'prague':        ['Charles Bridge', 'Old Town Square', 'Prague Castle'],
+            'vienna':        ['Schönbrunn Palace', 'St. Stephen\'s Cathedral', 'Belvedere'],
+            'berlin':        ['Brandenburg Gate', 'Reichstag', 'Berlin Wall Memorial'],
+            'madrid':        ['Prado Museum', 'Royal Palace', 'Retiro Park'],
+            'lisbon':        ['Belem Tower', 'Alfama District', 'Jerónimos Monastery'],
+            'athens':        ['Acropolis', 'Parthenon', 'Ancient Agora'],
+            'bangkok':       ['Grand Palace', 'Wat Pho', 'Chatuchak Market'],
+            'singapore':     ['Marina Bay Sands', 'Gardens by the Bay', 'Sentosa Island'],
+            'miami':         ['South Beach', 'Art Deco District', 'Wynwood Walls'],
+            'los angeles':   ['Hollywood Sign', 'Santa Monica Pier', 'Griffith Observatory'],
+            'chicago':       ['Millennium Park', 'Navy Pier', 'Art Institute of Chicago'],
+            'san francisco': ['Golden Gate Bridge', 'Alcatraz Island', 'Fisherman\'s Wharf'],
+            'las vegas':     ['Las Vegas Strip', 'Fremont Street', 'Bellagio Fountains'],
+            'bali':          ['Ubud Monkey Forest', 'Tanah Lot Temple', 'Kuta Beach'],
+            'cancun':        ['Chichen Itza', 'Tulum Ruins', 'Isla Mujeres'],
+            'hawaii':        ['Waikiki Beach', 'Diamond Head', 'Pearl Harbor'],
+            'rio':           ['Christ the Redeemer', 'Copacabana Beach', 'Sugarloaf Mountain'],
+            'cairo':         ['Pyramids of Giza', 'Egyptian Museum', 'Khan el-Khalili'],
+            'marrakech':     ['Medina', 'Jemaa el-Fna', 'Majorelle Garden'],
+            'moscow':        ['Red Square', 'Kremlin', 'St. Basil\'s Cathedral'],
+            'beijing':       ['Great Wall of China', 'Forbidden City', 'Tiananmen Square'],
+            'hong kong':     ['Victoria Peak', 'Temple Street Night Market', 'Star Ferry'],
+            'seoul':         ['Gyeongbokgung Palace', 'Myeongdong', 'N Seoul Tower'],
+            'toronto':       ['CN Tower', 'Niagara Falls', 'Distillery District'],
+            'mexico city':   ['Teotihuacan', 'Frida Kahlo Museum', 'Zocalo'],
+            'buenos aires':  ['Recoleta Cemetery', 'La Boca', 'Plaza de Mayo'],
+            'cape town':     ['Table Mountain', 'Robben Island', 'Boulders Beach'],
+            'munich':        ['Marienplatz', 'Neuschwanstein Castle', 'English Garden'],
+            'florence':      ['Uffizi Gallery', 'Florence Cathedral', 'Ponte Vecchio'],
+            'venice':        ['St. Mark\'s Basilica', 'Grand Canal', 'Rialto Bridge'],
+            'maldives':      ['Baa Atoll', 'Male City', 'Snorkeling Reef'],
+            'santorini':     ['Oia Sunset', 'Fira Town', 'Red Beach'],
+            'budapest':      ['Parliament Building', 'Buda Castle', 'Széchenyi Baths'],
+            'stockholm':     ['Vasa Museum', 'Gamla Stan', 'ABBA Museum'],
+            'copenhagen':    ['Nyhavn', 'Tivoli Gardens', 'The Little Mermaid'],
+            'oslo':          ['Viking Ship Museum', 'Vigeland Park', 'Akershus Fortress'],
+            'zurich':        ['Zurich Old Town', 'Lake Zurich', 'Grossmünster'],
+            'dubrovnik':     ['Old Town Walls', 'Lokrum Island', 'Stradun'],
+        };
+
+        function getDefaultActivities(dest) {
+            const d = dest.toLowerCase();
+            const key = Object.keys(CITY_DEFAULTS).find(k => d.includes(k) || k.includes(d));
+            if (key) return CITY_DEFAULTS[key].map(name => ({ name, type: 'Sightseeing' }));
+            return [
+                { name: dest + ' City Center', type: 'Sightseeing' },
+                { name: dest + ' Old Town',    type: 'Sightseeing' },
+                { name: dest + ' Local Market', type: 'Food & Dining' },
+            ];
+        }
+
         let activities = tripData.activities && tripData.activities.length
             ? tripData.activities
-            : [{ name: 'Central Park', type: 'Sightseeing' }, { name: 'Times Square', type: 'Sightseeing' }];
+            : getDefaultActivities(destination);
 
         function saveActivities() {
             const saved = JSON.parse(localStorage.getItem('currentTrip') || '{}');
@@ -715,13 +800,18 @@
         function renderItinerary() {
             const list = document.getElementById('itineraryList');
             list.innerHTML = '';
-            activities.forEach(act => {
+            activities.forEach((act, i) => {
                 const item = document.createElement('div');
                 item.className = 'itineraryItem';
+                const placeholder = tripData.imageUrl || 'img/tripPreviewBanner.jpg';
                 item.innerHTML = `
-                    <img src="img/tripPreviewBanner.jpg" alt="${act.name}">
+                    <img id="actImg${i}" src="${placeholder}" alt="${act.name}" style="object-fit:cover;">
                     <div class="itineraryItemInfo"><h3>${act.name}</h3><p>${act.type}</p></div>`;
                 list.appendChild(item);
+
+                fetchActivityImage(act.name, destination).then(url => {
+                    if (url) document.getElementById(`actImg${i}`).src = url;
+                });
             });
         }
         renderItinerary();

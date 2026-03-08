@@ -369,6 +369,16 @@ body > main {
     color: #2f6b24;
 }
 
+/* City banner image */
+.city-banner {
+    height: 180px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 14px;
+    margin-bottom: 8px;
+    display: none;
+}
+
 /* Responsive tweaks for mobile */
 @media (max-width: 768px) {
     .packing-summary {
