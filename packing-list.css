@@ -1,5 +1,5 @@
 /* ── Width override: make packing list page wider ── */
-body > main {
+body>main {
     padding: 28px 40px;
 }
 
@@ -8,7 +8,8 @@ body > main {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    min-height: 0; /* critical: allows flex child to scroll */
+    min-height: 0;
+    /* critical: allows flex child to scroll */
 }
 
 /* Summary at top (trip title + stats) */
@@ -138,7 +139,7 @@ body > main {
 }
 
 .packing-check--checked::after {
-    content: "✓";
+    content: "\2713";
     color: #fff;
     font-size: 0.7rem;
 }
@@ -201,7 +202,8 @@ body > main {
     position: fixed;
     inset: 0;
     background: rgba(17, 58, 88, 0.35);
-    display: none; /* hidden by default */
+    display: none;
+    /* hidden by default */
     align-items: center;
     justify-content: center;
     padding: 16px;
@@ -377,6 +379,12 @@ body > main {
     border-radius: 14px;
     margin-bottom: 8px;
     display: none;
+}
+
+.packing-qty::-webkit-outer-spin-button,
+.packing-qty::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 /* Responsive tweaks for mobile */

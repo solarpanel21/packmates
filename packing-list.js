@@ -1,9 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 //  ITEM DATABASE — sourced from List_database_packmate.xlsx
 //  profile: { hot, cold, snowy, rainy, windy, beach, ski,
-//             hiking, camping, swimming, gym, business,
-//             nightOut, baby, themePark, festival,
-//             roadTrip, citySightseeing, dining }
+//             hiking, camping, swimming, gym, business }
 // ═══════════════════════════════════════════════════════════════
 const ITEM_DB = {
     'Essentials': [
@@ -17,7 +15,6 @@ const ITEM_DB = {
         { name: 'Power Bank',     suggest: p => true },
         { name: 'Travel Adapter', suggest: p => true },
         { name: 'Keys',           suggest: p => true },
-        { name: 'Sleep Mask',     suggest: p => true },
     ],
     'Toiletries': [
         { name: 'Toothbrush',  suggest: p => true },
@@ -30,13 +27,7 @@ const ITEM_DB = {
         { name: 'Moisturizer', suggest: p => true },
         { name: 'Sunscreen',   suggest: p => p.hot || p.beach || p.hiking || p.camping },
         { name: 'Lip Balm',    suggest: p => p.cold || p.snowy || p.windy || p.ski },
-        { name: 'Hair Brush',         suggest: p => true },
-        { name: 'Comb',               suggest: p => true },
-        { name: 'Mouthwash',          suggest: p => true },
-        { name: 'Makeup Remover',     suggest: p => true },
-        { name: 'Makeup Wipes',       suggest: p => true },
-        { name: 'Antibacterial Wipes',suggest: p => true },
-        { name: 'Moisturizing Spray', suggest: p => true },
+        { name: 'Hair Brush',  suggest: p => true },
     ],
     'Clothing': [
         { name: 'T-Shirts',           suggest: p => true },
@@ -70,8 +61,6 @@ const ITEM_DB = {
         { name: 'Scarf',              suggest: p => p.cold || p.snowy },
         { name: 'Gloves',             suggest: p => p.cold || p.snowy || p.ski },
         { name: 'Beanie',             suggest: p => p.cold || p.snowy || p.ski },
-        { name: 'Wool Socks',         suggest: p => p.cold || p.snowy || p.ski || p.hiking },
-        { name: 'Leather Jacket',     suggest: p => !p.beach && !p.gym && !p.hiking },
     ],
     'Shoes': [
         { name: 'Sneakers',      suggest: p => true },
@@ -88,8 +77,6 @@ const ITEM_DB = {
         { name: 'Power Bank',     suggest: p => true },
         { name: 'USB Drive',      suggest: p => p.business },
         { name: 'Camera',         suggest: p => !p.business },
-        { name: 'GoPro',          suggest: p => p.hiking || p.camping || p.beach || p.ski },
-        { name: 'Tripod',         suggest: p => !p.business },
     ],
     'Business Trip': [
         { name: 'Dress Shirts',   suggest: p => p.business },
@@ -141,7 +128,6 @@ const ITEM_DB = {
         { name: 'Insect Repellent',suggest: p => p.hiking || p.camping },
         { name: 'Water Bottle',    suggest: p => p.hiking },
         { name: 'Snacks',          suggest: p => p.hiking || p.camping },
-        { name: 'Hydration Pack',  suggest: p => p.hiking },
     ],
     'Camping': [
         { name: 'Tent',            suggest: p => p.camping },
@@ -186,87 +172,6 @@ const ITEM_DB = {
         { name: 'Wool Socks',        suggest: p => p.cold || p.snowy },
         { name: 'Thermal Underwear', suggest: p => p.cold || p.snowy },
         { name: 'Fleece Sweater',    suggest: p => p.cold || p.snowy },
-    ],
-    'Night Out': [
-        { name: 'Dress',                 suggest: p => p.nightOut },
-        { name: 'Heels',                 suggest: p => p.nightOut },
-        { name: 'Dress Shoes',           suggest: p => p.nightOut },
-        { name: 'Blazer',                suggest: p => p.nightOut },
-        { name: 'Clutch Purse',          suggest: p => p.nightOut },
-        { name: 'Perfume/Cologne',       suggest: p => p.nightOut },
-        { name: 'Makeup Kit',            suggest: p => p.nightOut },
-        { name: 'Hair Styling Products', suggest: p => p.nightOut },
-    ],
-    'Baby': [
-        { name: 'Diapers',           suggest: p => p.baby },
-        { name: 'Baby Wipes',        suggest: p => p.baby },
-        { name: 'Baby Bottle',       suggest: p => p.baby },
-        { name: 'Baby Clothes',      suggest: p => p.baby },
-        { name: 'Baby Blanket',      suggest: p => p.baby },
-        { name: 'Diaper Bag',        suggest: p => p.baby },
-        { name: 'Stroller',          suggest: p => p.baby },
-        { name: 'Baby Carrier',      suggest: p => p.baby },
-        { name: 'Baby Sunscreen',    suggest: p => p.baby && p.hot },
-        { name: 'Baby Food Pouches', suggest: p => p.baby },
-    ],
-    'Theme Park': [
-        { name: 'Sneakers',     suggest: p => p.themePark },
-        { name: 'Sunscreen',    suggest: p => p.themePark && p.hot },
-        { name: 'Water Bottle', suggest: p => p.themePark },
-        { name: 'Sunglasses',   suggest: p => p.themePark },
-        { name: 'Sun Hat',      suggest: p => p.themePark && p.hot },
-        { name: 'Power Bank',   suggest: p => p.themePark },
-        { name: 'Camera',       suggest: p => p.themePark },
-        { name: 'Backpack',     suggest: p => p.themePark },
-        { name: 'Snacks',       suggest: p => p.themePark },
-        { name: 'Fanny Pack',   suggest: p => p.themePark },
-        { name: 'Rain Poncho',  suggest: p => p.themePark && p.rainy },
-    ],
-    'Festival': [
-        { name: 'Tent',         suggest: p => p.festival },
-        { name: 'Sleeping Bag', suggest: p => p.festival },
-        { name: 'Sunscreen',    suggest: p => p.festival && p.hot },
-        { name: 'Sunglasses',   suggest: p => p.festival },
-        { name: 'Sun Hat',      suggest: p => p.festival && p.hot },
-        { name: 'Water Bottle', suggest: p => p.festival },
-        { name: 'Power Bank',   suggest: p => p.festival },
-        { name: 'Raincoat',     suggest: p => p.festival && p.rainy },
-        { name: 'Fanny Pack',   suggest: p => p.festival },
-        { name: 'Portable Fan', suggest: p => p.festival && p.hot },
-    ],
-    'Road Trip': [
-        { name: 'Water Bottle',   suggest: p => p.roadTrip },
-        { name: 'Sunglasses',     suggest: p => p.roadTrip },
-        { name: 'Power Bank',     suggest: p => p.roadTrip },
-        { name: 'Camera',         suggest: p => p.roadTrip },
-        { name: 'Headphones',     suggest: p => p.roadTrip },
-        { name: 'Snacks',         suggest: p => p.roadTrip },
-        { name: 'Car Charger',    suggest: p => p.roadTrip },
-        { name: 'Travel Pillow',  suggest: p => p.roadTrip },
-        { name: 'Car Blanket',    suggest: p => p.roadTrip && p.cold },
-        { name: 'Car Sunshade',   suggest: p => p.roadTrip && p.hot },
-    ],
-    'City Sightseeing': [
-        { name: 'Sneakers',          suggest: p => p.citySightseeing },
-        { name: 'Camera',            suggest: p => p.citySightseeing },
-        { name: 'Sunglasses',        suggest: p => p.citySightseeing },
-        { name: 'Sun Hat',           suggest: p => p.citySightseeing && p.hot },
-        { name: 'Water Bottle',      suggest: p => p.citySightseeing },
-        { name: 'Sunscreen',         suggest: p => p.citySightseeing && p.hot },
-        { name: 'Power Bank',        suggest: p => p.citySightseeing },
-        { name: 'Backpack',          suggest: p => p.citySightseeing },
-        { name: 'Raincoat',          suggest: p => p.citySightseeing && p.rainy },
-        { name: 'Travel Guidebook',  suggest: p => p.citySightseeing },
-        { name: 'Portable Umbrella', suggest: p => p.citySightseeing && p.rainy },
-    ],
-    'Dining': [
-        { name: 'Dress',              suggest: p => p.dining },
-        { name: 'Dress Shoes',        suggest: p => p.dining },
-        { name: 'Blazer',             suggest: p => p.dining },
-        { name: 'Button-Down Shirts', suggest: p => p.dining },
-        { name: 'Dress Pants',        suggest: p => p.dining },
-        { name: 'Heels',              suggest: p => p.dining },
-        { name: 'Tie',                suggest: p => p.dining },
     ],
 };
 
@@ -314,26 +219,19 @@ function buildTripProfile(tripData) {
     }
 
     // Activity flags (user chips + destination)
-    const beach           = isBeachDest || sel.includes('Beach');
-    const ski             = isSkiDest   || sel.includes('Snow Sports');
-    const hiking          = sel.includes('Hiking');
-    const camping         = sel.includes('Camping');
-    const swimming        = beach || sel.includes('Swimming');
-    const gym             = sel.includes('Gym');
-    const business        = sel.includes('Business Trip');
-    const nightOut        = sel.includes('Night Out');
-    const baby            = sel.includes('Baby');
-    const themePark       = sel.includes('Theme Park');
-    const festival        = sel.includes('Festival');
-    const roadTrip        = sel.includes('Road Trip');
-    const citySightseeing = sel.includes('City Sightseeing');
-    const dining          = sel.includes('Dining');
+    const beach    = isBeachDest || sel.includes('Beach');
+    const ski      = isSkiDest   || sel.includes('Snow Sports');
+    const hiking   = sel.includes('Hiking');
+    const camping  = sel.includes('Camping');
+    const swimming = beach || sel.includes('Swimming');
+    const gym      = sel.includes('Gym');
+    const business = sel.includes('Business Trip');
 
     // Activities can modify weather profile
     if (beach)    hot   = true;
     if (ski)    { cold  = true; snowy = true; }
 
-    return { hot, cold, snowy, rainy, windy, beach, ski, hiking, camping, swimming, gym, business, nightOut, baby, themePark, festival, roadTrip, citySightseeing, dining };
+    return { hot, cold, snowy, rainy, windy, beach, ski, hiking, camping, swimming, gym, business };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -341,13 +239,6 @@ function buildTripProfile(tripData) {
 // ═══════════════════════════════════════════════════════════════
 const tripData = JSON.parse(localStorage.getItem('currentTrip') || '{}');
 const profile  = buildTripProfile(tripData);
-
-// City banner image
-const cityBanner = document.getElementById('cityBanner');
-if (cityBanner && tripData.imageUrl) {
-    cityBanner.style.backgroundImage = `url('${tripData.imageUrl}')`;
-    cityBanner.style.display = 'block';
-}
 
 const destination = tripData.destination || 'Trip';
 const fromDate    = tripData.fromDate    || '';
@@ -406,15 +297,8 @@ if (profile.ski)      profileBadges.push('⛷️ Ski');
 if (profile.hiking)   profileBadges.push('🥾 Hiking');
 if (profile.camping)  profileBadges.push('⛺ Camping');
 if (profile.swimming) profileBadges.push('🏊 Swimming');
-if (profile.gym)             profileBadges.push('💪 Gym');
-if (profile.business)        profileBadges.push('💼 Business');
-if (profile.nightOut)        profileBadges.push('🌙 Night Out');
-if (profile.baby)            profileBadges.push('👶 Baby');
-if (profile.themePark)       profileBadges.push('🎢 Theme Park');
-if (profile.festival)        profileBadges.push('🎪 Festival');
-if (profile.roadTrip)        profileBadges.push('🚗 Road Trip');
-if (profile.citySightseeing) profileBadges.push('🏙️ City Sightseeing');
-if (profile.dining)          profileBadges.push('🍽️ Dining');
+if (profile.gym)      profileBadges.push('💪 Gym');
+if (profile.business) profileBadges.push('💼 Business');
 
 // ── Count helpers ──
 function getSuggestedKeys() {
