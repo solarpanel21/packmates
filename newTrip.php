@@ -1,7 +1,10 @@
 <?php
 session_start();
+
+
 include("connectionInclude.php");
 include("weatherChain.php");
+
 
 //check if logged in
 if (!isset($_SESSION['logged_in'])) {
@@ -9,8 +12,8 @@ if (!isset($_SESSION['logged_in'])) {
     exit();
 }
 
-//server connect script
-require("connectionInclude.php");
+$notif_count = $mysqli->query("SELECT COUNT(*) as cnt FROM notifications WHERE userid = {$_SESSION['logged_in_user_id']} AND isread = 0")->fetch_assoc()['cnt'];
+$notif_icon = $notif_count > 0 ? 'img/notif2.png' : 'img/notif.png';
 
 
 //get users info
@@ -27,7 +30,7 @@ function checkNull($dataPoint) {
 }
 
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_trip'])) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_trip'])) {
     $tripname   = $mysqli->real_escape_string($_POST['tripname']);
     $city       = $mysqli->real_escape_string($_POST['tripCity']);
     $country    = $mysqli->real_escape_string($_POST['tripCountry']);
@@ -41,6 +44,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_trip'])) {
     $iconurl = $mysqli->real_escape_string($_POST['iconurl'] ?? '');
 
 
+    if (empty($tripname) || empty($city) || empty($country) || empty($startdate) || empty($enddate)) {
+        $error = "Please fill in all required fields.";
+    } else if ($lat === 0.0 && $lon === 0.0) {
+        $error = "Please select a destination from the search dropdown.";
+    } else {
+        // Run weather chain to get tags
+        $weather = fetch_weather($lat, $lon, $startdate, $enddate);
+
     // Run weather chain to get tags
     $weather = fetch_weather($lat, $lon, $startdate, $enddate);
     $tags = [];
@@ -53,6 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_trip'])) {
     }
     $weathertags = implode(',', $tags);
     $creationdate = date('Y-m-d H:i:s');
+
+
 
     $insert = "INSERT INTO trips (tripname, city, country, latitude, longitude, startdate, enddate, creationdate, notes, weathertags, activitytags, userid, iconurl)
                VALUES ('$tripname', '$city', '$country', $lat, $lon, '$startdate', '$enddate', '$creationdate', '$notes', '$weathertags', '$activities', $userid, '$iconurl')";
@@ -78,18 +91,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_trip'])) {
             AND ($activity_condition)
         ");
 
-        // Insert each one into tripitems for this trip
+        if ($suggested->num_rows === 0) die("No suggested items matched the tags. weather_condition: $weather_condition | activity_condition: $activity_condition");
         while ($item = $suggested->fetch_assoc()) {
             $mysqli->query("
-                INSERT INTO tripitems (tripid, itemid, ischecked, isdismissed)
-                VALUES ($new_tripid, {$item['itemid']}, 0, 0)
+                INSERT INTO tripitems (tripid, itemid, ischecked, isdismissed, quantity)
+                VALUES ($new_tripid, {$item['itemid']}, 0, 0, 1)
             ");
+            if ($mysqli->error) die("tripitems insert error: " . $mysqli->error);
         }
+
+        include("checkNotifications.php");
+        checkTripNotifications($mysqli);
 
         header("Location: tripPreview.php?tripid=" . $new_tripid);
         exit();
-    }
+    } // end else
+} // end if POST
 }
+
+
+
+
+
 ?>
 
 <!DOCTYPE html>
@@ -148,10 +171,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_trip'])) {
                     class="icon"><span>Home</span></button>
             <!--<button type="reset" onclick="location.href='discover.html'"><img src="img/calendar.png" alt=""
                     class="icon"><span>Discover</span></button>-->
-            <button type="reset" onclick="location.href='notifications.php'"><img src="img/notif.png" alt=""
-                    class="icon"><span>Notifications</span></button>
-            <button type="reset" onclick="location.href='profile.php'"><img src="img/profile.png" alt=""
-                    class="icon"><span>Profile</span></button>
+            <button type="reset" onclick="location.href='notifications.php'">
+                <img src="<?php echo $notif_icon; ?>" alt="" class="icon">
+                <span>Notifications</span>
+            </button>
+            <?php include("navUser.php"); ?>
+            <button type="button" onclick="location.href='profile.php'">
+                <img class="icon" style="border-radius:7px;" src="<?php echo $nav_pfp; ?>" alt="Profile">
+                <span>Profile</span>
+            </button>
         </div>
         <div class="nav-bottom">
             <hr>
@@ -263,6 +291,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_trip'])) {
                     document.getElementById('tripCity').value = place.name;
                     document.getElementById('tripCountry').value = place.country;
                     document.getElementById('tripAdmin1').value = place.admin1 || '';
+                    const cityName = encodeURIComponent(place.name + ', ' + place.country);
+                    document.getElementById('cityMap').src = `https://maps.google.com/maps?q=${cityName}&output=embed`;
                     document.getElementById('tripLat').value = place.latitude;
                     document.getElementById('tripLon').value = place.longitude;
                     document.getElementById('destinationDropdown').style.display = 'none';
@@ -324,13 +354,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_trip'])) {
                 <h3>Notes</h3>
                 <textarea name="notes" maxlength="500" id="tripNotes" placeholder="Add Any Additional Info..."></textarea>
 
+<?php if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($error)): ?>
+    <p style="color:red;"><?php echo $error; ?></p>
+<?php endif; ?>
+
                 <div class="cancelSaveButtons">
                     <button class="cancel" type="button" onclick="location.href='home.php'">Cancel Trip</button>
                     <button class="save" type="submit" id="saveTripBtn" name="save_trip" value="true">Save Trip</button>
                 </div>
             </form>
         </div>
-        <div class="mapArea"></div>
+        <div>
+        <iframe id="cityMap"
+            src="https://maps.google.com/maps?q=New+York&output=embed"
+            style="pointer-events:none;width:100%;height:100%;border:none;border-radius:12px;">
+        </iframe>
+</div>
     </div>
 
     <script>
@@ -411,6 +450,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_trip'])) {
 
         document.querySelectorAll('.activity-chip').forEach(chip => {
             chip.addEventListener('click', () => chip.classList.toggle('selected'));
+        });
+
+document.querySelector('button[name="save_trip"]').addEventListener('click', function() {
+    const btn = this;
+    const tripname = document.getElementById('tripname').value.trim();
+    const city = document.getElementById('tripCity').value.trim();
+    const startdate = document.getElementById('tripFromDate').value;
+    const enddate = document.getElementById('tripToDate').value;
+
+    if (tripname && city && startdate && enddate) {
+        setTimeout(() => {
+            btn.disabled = true;
+            btn.textContent = 'Creating Trip...';
+        }, 100);
+    }
+});
+
+
+        const startInput = document.getElementById('tripFromDate');
+        const endInput   = document.getElementById('tripToDate');
+
+        const today = new Date().toISOString().split('T')[0];
+        startInput.min = today;
+        endInput.min = today;
+
+        startInput.addEventListener('change', function() {
+            endInput.min = this.value;
+            if (endInput.value && endInput.value < this.value) {
+                endInput.value = this.value;
+            }
         });
     </script>
 </body>

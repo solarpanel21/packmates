@@ -11,10 +11,16 @@ if (php_sapi_name() !== 'cli' && isset($_GET['name'])) {
     header('Access-Control-Allow-Origin: *');
     header('Content-Type: application/json');
     $count = isset($_GET['count']) ? (int)$_GET['count'] : 10;
-    $results = geocode_lookup($_GET['name'], $count);
+   $results = geocode_lookup($_GET['name'], $count);
     if (!$results) {
         echo json_encode(['error' => 'No results found']);
     } else {
+        // Filter out countries and non-city results
+        $results = array_values(array_filter($results, function($r) {
+            $fc = $r['feature_code'] ?? '';
+            return strpos($fc, 'PPL') === 0;
+        }));
+
         $output = [];
         foreach ($results as $r) {
             $output[] = [

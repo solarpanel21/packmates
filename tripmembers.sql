@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 08, 2026 at 06:33 PM
+-- Generation Time: Mar 11, 2026 at 09:54 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -36,6 +36,13 @@ CREATE TABLE `tripmembers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
+-- Dumping data for table `tripmembers`
+--
+
+INSERT INTO `tripmembers` (`tripmembersid`, `role`, `joindate`, `tripid`, `userid`) VALUES
+(1, 'viewer', '2026-03-11', 14, 2);
+
+--
 -- Indexes for dumped tables
 --
 
@@ -44,8 +51,8 @@ CREATE TABLE `tripmembers` (
 --
 ALTER TABLE `tripmembers`
   ADD PRIMARY KEY (`tripmembersid`),
-  ADD UNIQUE KEY `userid` (`userid`),
-  ADD KEY `tripid` (`tripid`);
+  ADD KEY `tripid` (`tripid`),
+  ADD KEY `userid` (`userid`) USING BTREE;
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -55,7 +62,7 @@ ALTER TABLE `tripmembers`
 -- AUTO_INCREMENT for table `tripmembers`
 --
 ALTER TABLE `tripmembers`
-  MODIFY `tripmembersid` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `tripmembersid` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- Constraints for dumped tables

@@ -1,6 +1,7 @@
 <?php
 session_start();
 include("connectionInclude.php");
+include("checkNotifications.php");
 
 if (isset($_SESSION['logged_in'])) {
     header("Location: home.php");
@@ -31,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_account'])) {
                 $_SESSION['logged_in_user'] = $new_user->username;
                 $_SESSION['logged_in_user_id'] = $new_user->userid;
                 $_SESSION['logged_in_user_fullname'] = $new_user->username;
+                checkTripNotifications($mysqli);
                 header("Location: home.php");
                 exit();
             }

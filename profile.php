@@ -1,25 +1,63 @@
 <?php
 session_start();
 
-//check if logged in
+// Check if logged in
 if (!isset($_SESSION['logged_in'])) {
     header("Location: logout.php");
     exit();
 }
 
-//server connect script
 require("connectionInclude.php");
 
+$notif_count = $mysqli->query("SELECT COUNT(*) as cnt FROM notifications WHERE userid = {$_SESSION['logged_in_user_id']} AND isread = 0")->fetch_assoc()['cnt'];
+$notif_icon = $notif_count > 0 ? 'img/notif2.png' : 'img/notif.png';
 
-//get users info
-$select_query = "SELECT userid, username, password, email, pfpurl FROM users";
-$select_result = $mysqli->query($select_query);
-if ($mysqli->error) {
-    print "Select query error!  Message: " . $mysqli->error;
+$user_id = $_SESSION['logged_in_user_id'];
+
+// Handle profile save (username + email)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_profile'])) {
+    $username = $mysqli->real_escape_string(trim($_POST['username']));
+    $email    = $mysqli->real_escape_string(trim($_POST['email']));
+    if (empty($username) || empty($email)) {
+        echo json_encode(['success' => false, 'error' => 'Username and email are required.']);
+    } else {
+        $mysqli->query("UPDATE users SET username = '$username', email = '$email' WHERE userid = $user_id");
+        if ($mysqli->error) {
+            echo json_encode(['success' => false, 'error' => $mysqli->error]);
+        } else {
+            $_SESSION['logged_in_user'] = $username;
+            echo json_encode(['success' => true]);
+        }
+    }
+    exit();
 }
 
+// Handle pfp URL save
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pfp'])) {
+    $pfpurl = $mysqli->real_escape_string(trim($_POST['pfpurl']));
+    $mysqli->query("UPDATE users SET pfpurl = '$pfpurl' WHERE userid = $user_id");
+    echo json_encode(['success' => $mysqli->error ? false : true, 'error' => $mysqli->error]);
+    exit();
+}
 
-//check if anything is null
+// Handle password change
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_password'])) {
+    $current = md5($_POST['current_password']);
+    $new     = md5($_POST['new_password']);
+    $check   = $mysqli->query("SELECT userid FROM users WHERE userid = $user_id AND password = '$current'");
+    if ($check->num_rows === 0) {
+        echo json_encode(['success' => false, 'error' => 'Current password is incorrect.']);
+    } else {
+        $mysqli->query("UPDATE users SET password = '$new' WHERE userid = $user_id");
+        echo json_encode(['success' => true]);
+    }
+    exit();
+}
+
+// Get current user info
+$user_query = $mysqli->query("SELECT userid, username, email, pfpurl FROM users WHERE userid = $user_id");
+$user = $user_query->fetch_assoc();
+
 function checkNull($dataPoint) {
     return ($dataPoint === null || $dataPoint === "") ? "N/A" : $dataPoint;
 }
@@ -267,6 +305,10 @@ function checkNull($dataPoint) {
 
     .menu-item.open {
       grid-column: span 2;
+    }
+
+    .menu-item.no-span.open {
+      grid-column: span 1;
     }
 
     .menu-item {
@@ -781,10 +823,13 @@ function checkNull($dataPoint) {
                     class="icon"><span>Home</span></button>
             <!--<button type="reset" onclick="location.href='discover.html'"><img src="img/calendar.png" alt=""
                     class="icon"><span>Discover</span></button>-->
-            <button type="reset" onclick="location.href='notifications.php'"><img src="img/notif.png" alt=""
-                    class="icon"><span>Notifications</span></button>
-            <button type="reset" onclick="location.href='profile.php'"><img src="img/profile.png" alt=""
-                    class="icon"><span>Profile</span></button>
+            <button type="reset" onclick="location.href='notifications.php'">
+                <img src="<?php echo $notif_icon; ?>" alt="" class="icon">
+                <span>Notifications</span>
+            </button>
+            <button type="reset" onclick="location.href='profile.php'">
+              <img id="avatar-img" class="icon" style="border-radius:7px;" src="<?php echo htmlspecialchars($user['pfpurl'] ?? ''); ?>" alt="Profile photo">
+              <span>Profile</span></button>
         </div>
         <div class="nav-bottom">
             <hr>
@@ -800,29 +845,33 @@ function checkNull($dataPoint) {
       <!-- PROFILE HEADER -->
 
       <div class="profile-card">
-        <div class="avatar-wrap" onclick="document.getElementById('avatar-input').click()" title="Change photo">
-          <div class="avatar" id="avatar">
+        <div class="avatar-wrap">
+          <div class="avatar <?php echo !empty($user['pfpurl']) ? 'has-photo' : ''; ?>" id="avatar">
             <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
               <circle cx="21" cy="16" r="8" fill="#888" />
               <ellipse cx="21" cy="36" rx="14" ry="9" fill="#888" />
             </svg>
-            <img id="avatar-img" src="" alt="Profile photo">
+            <img id="avatar-img" src="<?php echo htmlspecialchars($user['pfpurl'] ?? ''); ?>" alt="Profile photo">
           </div>
-          <div class="avatar-overlay">Change Photo</div>
         </div>
-        <input type="file" id="avatar-input" accept="image/*">
 
         <div class="profile-info" id="profile-display">
-          <h1 id="display-name">PackMate Guest</h1>
-          <div class="handle" id="display-handle">@PACKMATE_GUEST_ACCOUNT</div>
+          <h1 id="display-name"><?php echo htmlspecialchars($user['username']); ?></h1>
+          <div class="handle" id="display-handle"><?php echo htmlspecialchars($user['email']); ?></div>
         </div>
 
         <div class="profile-edit-inputs" id="profile-edit">
-          <input type="text" id="edit-name" placeholder="Display name">
-          <input type="text" id="edit-handle" placeholder="@handle">
+          <input type="text" id="edit-name" placeholder="Username" maxlength="24">
+          <input type="email" id="edit-handle" placeholder="Email">
         </div>
 
-        <button class="btn-edit" id="btn-edit-profile" onclick="toggleProfileEdit()">Edit Profile</button>
+        <div class="profile-edit-inputs" id="profile-edit">
+            <input type="text" id="edit-name" placeholder="Username" maxlength="24">
+            <input type="email" id="edit-handle" placeholder="Email">
+            <input type="text" id="edit-pfp" placeholder="Profile photo URL">
+        </div>
+
+
       </div>
 
       <!-- GRID -->
@@ -838,7 +887,7 @@ function checkNull($dataPoint) {
                 <circle cx="12" cy="7" r="4" />
               </svg>
             </div>
-            <div class="menu-text"><strong>Personal Data</strong><span>Name, Email, Phone</span></div>
+            <div class="menu-text"><strong>Personal Data</strong><span>Username, Email, Profile Photo</span></div>
             <svg class="menu-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
               stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
               <polyline points="6 9 12 15 18 9" />
@@ -846,162 +895,17 @@ function checkNull($dataPoint) {
           </div>
           <div class="panel" id="panel-personal">
             <div class="panel-inner">
-              <div class="field"><label>Full Name</label><input type="text" id="pd-name" placeholder="Your full name">
-              </div>
-              <div class="field"><label>Email</label><input type="email" id="pd-email" placeholder="you@example.com">
-              </div>
-              <div class="field"><label>Phone</label><input type="tel" id="pd-phone" placeholder="+1 (555) 000-0000">
-              </div>
+              <div class="field"><label>Username</label><input type="text" id="pd-username" maxlength="24" placeholder="Your username" value="<?php echo htmlspecialchars($user['username']); ?>"></div>
+              <div class="field"><label>Email</label><input type="email" id="pd-email" placeholder="you@example.com" value="<?php echo htmlspecialchars($user['email']); ?>"></div>
+              <div class="field"><label>Profile Photo URL</label><input type="text" id="pd-pfpurl" placeholder="https://..." value="<?php echo htmlspecialchars($user['pfpurl'] ?? ''); ?>"></div>
               <div class="field-msg" id="pd-msg"></div>
               <button class="btn-save" onclick="savePersonalData()">Save Changes</button>
             </div>
           </div>
         </div>
 
-        <!-- Security -->
-        <div class="menu-item" id="card-security">
-          <div class="menu-header" onclick="toggleCard('security')">
-            <div class="menu-icon">
-              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" viewBox="0 0 24 24">
-                <rect x="3" y="11" width="18" height="11" rx="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-            </div>
-            <div class="menu-text"><strong>Security</strong><span>Password</span></div>
-            <svg class="menu-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </div>
-          <div class="panel" id="panel-security">
-            <div class="panel-inner">
-              <div class="field"><label>Current Password</label><input type="password" id="sec-current"
-                  placeholder="••••••••"></div>
-              <div class="field"><label>New Password</label><input type="password" id="sec-new"
-                  placeholder="Min. 8 characters"></div>
-              <div class="field"><label>Confirm New Password</label><input type="password" id="sec-confirm"
-                  placeholder="••••••••"></div>
-              <div class="field-msg" id="sec-msg"></div>
-              <button class="btn-save" onclick="savePassword()">Update Password</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Subscription -->
-        <div class="menu-item" id="card-subscription">
-          <div class="menu-header" onclick="toggleCard('subscription')">
-            <div class="menu-icon">
-              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" viewBox="0 0 24 24">
-                <path
-                  d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-              </svg>
-            </div>
-            <div class="menu-text"><strong>Subscription</strong><span>Manage your plan</span></div>
-            <svg class="menu-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </div>
-          <div class="panel" id="panel-subscription">
-            <div class="panel-inner">
-              <div class="plan-badge">
-                <div>
-                  <strong>Free Tier</strong>
-                  <span>Up to 3 packing lists · Basic features</span>
-                </div>
-                <span class="plan-tag">Active</span>
-              </div>
-              <p style="font-size:0.82rem;color:var(--muted);line-height:1.6;">Upgrade to Pro for unlimited lists, smart
-                weather packing, and real-time collaboration.</p>
-              <button class="btn-upgrade" onclick="showToast('Redirecting to checkout…')">Upgrade to Pro →</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Notifications -->
-        <div class="menu-item" id="card-notifications">
-          <div class="menu-header" onclick="toggleCard('notifications')">
-            <div class="menu-icon">
-              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" viewBox="0 0 24 24">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-            </div>
-            <div class="menu-text"><strong>Notifications</strong><span>Alerts and emails</span></div>
-            <svg class="menu-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </div>
-          <div class="panel" id="panel-notifications">
-            <div class="panel-inner">
-              <div class="toggle-row">
-                <div class="toggle-label"><strong>Email Alerts</strong><small>Trip reminders and updates</small></div>
-                <label class="toggle"><input type="checkbox" id="notif-email" onchange="saveNotifications()"><span
-                    class="toggle-slider"></span></label>
-              </div>
-              <div class="toggle-row">
-                <div class="toggle-label"><strong>Push Notifications</strong><small>In-app alerts</small></div>
-                <label class="toggle"><input type="checkbox" id="notif-push" onchange="saveNotifications()"><span
-                    class="toggle-slider"></span></label>
-              </div>
-              <div class="toggle-row">
-                <div class="toggle-label"><strong>Packing Reminders</strong><small>24h before departure</small></div>
-                <label class="toggle"><input type="checkbox" id="notif-reminders" onchange="saveNotifications()"><span
-                    class="toggle-slider"></span></label>
-              </div>
-              <div class="toggle-row">
-                <div class="toggle-label"><strong>Product Updates</strong><small>New features and news</small></div>
-                <label class="toggle"><input type="checkbox" id="notif-updates" onchange="saveNotifications()"><span
-                    class="toggle-slider"></span></label>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Privacy -->
-        <div class="menu-item" id="card-privacy">
-          <div class="menu-header" onclick="toggleCard('privacy')">
-            <div class="menu-icon">
-              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" viewBox="0 0 24 24">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </div>
-            <div class="menu-text"><strong>Privacy</strong><span>Data</span></div>
-            <svg class="menu-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </div>
-          <div class="panel" id="panel-privacy">
-            <div class="panel-inner">
-              <div class="toggle-row">
-                <div class="toggle-label"><strong>Analytics</strong><small>Help improve PackMate</small></div>
-                <label class="toggle"><input type="checkbox" id="priv-analytics" onchange="savePrivacy()"><span
-                    class="toggle-slider"></span></label>
-              </div>
-              <div class="toggle-row">
-                <div class="toggle-label"><strong>Personalisation</strong><small>Tailored suggestions</small></div>
-                <label class="toggle"><input type="checkbox" id="priv-personalise" onchange="savePrivacy()"><span
-                    class="toggle-slider"></span></label>
-              </div>
-              <div class="toggle-row">
-                <div class="toggle-label"><strong>Share Usage Data</strong><small>Anonymous statistics</small></div>
-                <label class="toggle"><input type="checkbox" id="priv-share" onchange="savePrivacy()"><span
-                    class="toggle-slider"></span></label>
-              </div>
-              <button class="btn-save" style="background:var(--accent-red);"
-                onclick="showToast('Data deletion request submitted.')">Request Data Deletion</button>
-            </div>
-          </div>
-        </div>
-
         <!-- Help Center -->
-        <div class="menu-item" id="card-help">
+        <div class="menu-item no-span" id="card-help">
           <div class="menu-header" onclick="toggleCard('help')">
             <div class="menu-icon">
               <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -1109,87 +1013,76 @@ function checkNull($dataPoint) {
 
       // ── INIT ──
       window.addEventListener('DOMContentLoaded', () => {
-        loadProfile();
-        loadPersonalData();
-        loadNotifications();
-        loadPrivacy();
-        loadAvatar();
-
-        // Avatar input listener placed here to ensure DOM is ready
-        document.getElementById('avatar-input').addEventListener('change', function () {
-          const file = this.files[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = e => {
-            try { localStorage.setItem('pm_avatar', e.target.result); } catch (e) { }
-            applyAvatar(e.target.result);
-            showToast('Profile photo updated!');
-          };
-          reader.readAsDataURL(file);
-        });
+        // Apply avatar if pfpurl is set
+        const avatarImg = document.getElementById('avatar-img');
+        if (avatarImg.src && avatarImg.src !== window.location.href) {
+          document.getElementById('avatar').classList.add('has-photo');
+        }
       });
 
-      // ── AVATAR ──
-      function applyAvatar(src) {
-        document.getElementById('avatar-img').src = src;
-        document.getElementById('avatar').classList.add('has-photo');
-      }
-
-      function loadAvatar() {
-        try {
-          const saved = localStorage.getItem('pm_avatar');
-          if (saved) applyAvatar(saved);
-        } catch (e) { }
-      }
-
-      // ── PROFILE EDIT ──
+      // ── PROFILE EDIT (username + email) ──
       let editingProfile = false;
-
-      function loadProfile() {
-        try {
-          const name = localStorage.getItem('pm_name') || 'PackMate Guest';
-          const handle = localStorage.getItem('pm_handle') || '@PACKMATE_GUEST_ACCOUNT';
-          document.getElementById('display-name').textContent = name;
-          document.getElementById('display-handle').textContent = handle;
-        } catch (e) {
-          document.getElementById('display-name').textContent = 'PackMate Guest';
-          document.getElementById('display-handle').textContent = '@PACKMATE_GUEST_ACCOUNT';
-        }
-      }
 
       function toggleProfileEdit() {
         editingProfile = !editingProfile;
         const display = document.getElementById('profile-display');
-        const editEl = document.getElementById('profile-edit');
-        const btn = document.getElementById('btn-edit-profile');
+        const editEl  = document.getElementById('profile-edit');
+        const btn     = document.getElementById('btn-edit-profile');
 
         if (editingProfile) {
-          try {
-            document.getElementById('edit-name').value = localStorage.getItem('pm_name') || 'PackMate Guest';
-            document.getElementById('edit-handle').value = localStorage.getItem('pm_handle') || '@PACKMATE_GUEST_ACCOUNT';
-          } catch (e) { }
+          document.getElementById('edit-name').value   = document.getElementById('display-name').textContent;
+          document.getElementById('edit-handle').value = document.getElementById('display-handle').textContent;
+          document.getElementById('edit-pfp').value = document.getElementById('avatar-img').src !== window.location.href ? document.getElementById('avatar-img').src : '';
           display.style.display = 'none';
-          editEl.style.display = 'flex';
+          editEl.style.display  = 'flex';
           btn.textContent = 'Save';
         } else {
-          const name = document.getElementById('edit-name').value.trim() || 'PackMate Guest';
-          const handle = document.getElementById('edit-handle').value.trim() || '@PACKMATE_GUEST_ACCOUNT';
-          try {
-            localStorage.setItem('pm_name', name);
-            localStorage.setItem('pm_handle', handle);
-          } catch (e) { }
-          document.getElementById('display-name').textContent = name;
-          document.getElementById('display-handle').textContent = handle;
+          const username = document.getElementById('edit-name').value.trim();
+          const email    = document.getElementById('edit-handle').value.trim();
+          const pfpurl = document.getElementById('edit-pfp').value.trim();
+fetch('profile.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `save_pfp=1&pfpurl=${encodeURIComponent(pfpurl)}`
+}).then(r => r.json()).then(data => {
+    if (data.success) {
+        const img = document.getElementById('avatar-img');
+        if (pfpurl) {
+            img.src = pfpurl;
+            document.getElementById('avatar').classList.add('has-photo');
+        } else {
+            img.src = '';
+            document.getElementById('avatar').classList.remove('has-photo');
+        }
+    }
+});
+          if (!username || !email) { editingProfile = true; showToast('Username and email cannot be empty.'); return; }
+
+          fetch('profile.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `save_profile=1&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}`
+          }).then(r => r.json()).then(data => {
+            if (data.success) {
+              document.getElementById('display-name').textContent   = username;
+              document.getElementById('display-handle').textContent = email;
+              showToast('Profile updated!');
+            } else {
+              showToast('Error: ' + (data.error || 'Could not save.'));
+              editingProfile = true;
+              return;
+            }
+          });
+
           display.style.display = '';
-          editEl.style.display = 'none';
+          editEl.style.display  = 'none';
           btn.textContent = 'Edit Profile';
-          showToast('Profile updated!');
         }
       }
 
       // ── CARD TOGGLE ──
       function toggleCard(id) {
-        const card = document.getElementById('card-' + id);
+        const card  = document.getElementById('card-' + id);
         const panel = document.getElementById('panel-' + id);
         const isOpen = card.classList.contains('open');
 
@@ -1204,55 +1097,87 @@ function checkNull($dataPoint) {
         }
       }
 
-      // ── PERSONAL DATA ──
-      function loadPersonalData() {
-        try {
-          document.getElementById('pd-name').value = localStorage.getItem('pm_pd_name') || '';
-          document.getElementById('pd-email').value = localStorage.getItem('pm_pd_email') || '';
-          document.getElementById('pd-phone').value = localStorage.getItem('pm_pd_phone') || '';
-        } catch (e) { }
-      }
-
+      // ── PERSONAL DATA (username, email, pfp url) ──
       function savePersonalData() {
-        const name = document.getElementById('pd-name').value.trim();
-        const email = document.getElementById('pd-email').value.trim();
-        const phone = document.getElementById('pd-phone').value.trim();
-        if (!name || !email) { showMsg('pd-msg', 'Name and email are required.', 'error'); return; }
+        const username = document.getElementById('pd-username').value.trim();
+        const email    = document.getElementById('pd-email').value.trim();
+        const pfpurl   = document.getElementById('pd-pfpurl').value.trim();
+
+        if (!username || !email) { showMsg('pd-msg', 'Username and email are required.', 'error'); return; }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('pd-msg', 'Please enter a valid email address.', 'error'); return; }
-        try {
-          localStorage.setItem('pm_pd_name', name);
-          localStorage.setItem('pm_pd_email', email);
-          localStorage.setItem('pm_pd_phone', phone);
-        } catch (e) { }
-        showMsg('pd-msg', 'Personal data saved successfully!', 'success');
-        showToast('Personal data saved!');
+
+        // Save username + email
+        fetch('profile.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `save_profile=1&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}`
+        }).then(r => r.json()).then(data => {
+          if (!data.success) { showMsg('pd-msg', data.error || 'Could not save.', 'error'); return; }
+
+          // Save pfp url separately
+          fetch('profile.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `save_pfp=1&pfpurl=${encodeURIComponent(pfpurl)}`
+          }).then(r => r.json()).then(pfpData => {
+            if (pfpData.success) {
+              // Update avatar display
+              const img = document.getElementById('avatar-img');
+              if (pfpurl) {
+                img.src = pfpurl;
+                document.getElementById('avatar').classList.add('has-photo');
+              } else {
+                img.src = '';
+                document.getElementById('avatar').classList.remove('has-photo');
+              }
+              // Update profile header display
+              document.getElementById('display-name').textContent   = username;
+              document.getElementById('display-handle').textContent = email;
+              showMsg('pd-msg', 'Saved successfully!', 'success');
+              showToast('Personal data saved!');
+            } else {
+              showMsg('pd-msg', pfpData.error || 'Could not save photo URL.', 'error');
+            }
+          });
+        });
       }
 
-      // ── SECURITY ──
+      // ── SECURITY (password change) ──
       function savePassword() {
         const current = document.getElementById('sec-current').value;
-        const newPw = document.getElementById('sec-new').value;
+        const newPw   = document.getElementById('sec-new').value;
         const confirm = document.getElementById('sec-confirm').value;
         if (!current) { showMsg('sec-msg', 'Please enter your current password.', 'error'); return; }
         if (newPw.length < 8) { showMsg('sec-msg', 'New password must be at least 8 characters.', 'error'); return; }
         if (newPw !== confirm) { showMsg('sec-msg', 'Passwords do not match.', 'error'); return; }
-        document.getElementById('sec-current').value = '';
-        document.getElementById('sec-new').value = '';
-        document.getElementById('sec-confirm').value = '';
-        showMsg('sec-msg', 'Password updated successfully!', 'success');
-        showToast('Password updated!');
+
+        fetch('profile.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `save_password=1&current_password=${encodeURIComponent(current)}&new_password=${encodeURIComponent(newPw)}`
+        }).then(r => r.json()).then(data => {
+          if (data.success) {
+            document.getElementById('sec-current').value = '';
+            document.getElementById('sec-new').value     = '';
+            document.getElementById('sec-confirm').value = '';
+            showMsg('sec-msg', 'Password updated successfully!', 'success');
+            showToast('Password updated!');
+          } else {
+            showMsg('sec-msg', data.error || 'Could not update password.', 'error');
+          }
+        });
       }
 
-      // ── NOTIFICATIONS ──
+      // ── NOTIFICATIONS (localStorage only — no DB table) ──
       function loadNotifications() {
         try {
           const saved = JSON.parse(localStorage.getItem('pm_notif') || '{}');
-          document.getElementById('notif-email').checked = saved.email ?? true;
-          document.getElementById('notif-push').checked = saved.push ?? false;
+          document.getElementById('notif-email').checked     = saved.email     ?? true;
+          document.getElementById('notif-push').checked      = saved.push      ?? false;
           document.getElementById('notif-reminders').checked = saved.reminders ?? true;
-          document.getElementById('notif-updates').checked = saved.updates ?? false;
+          document.getElementById('notif-updates').checked   = saved.updates   ?? false;
         } catch (e) {
-          document.getElementById('notif-email').checked = true;
+          document.getElementById('notif-email').checked     = true;
           document.getElementById('notif-reminders').checked = true;
         }
       }
@@ -1260,24 +1185,24 @@ function checkNull($dataPoint) {
       function saveNotifications() {
         try {
           localStorage.setItem('pm_notif', JSON.stringify({
-            email: document.getElementById('notif-email').checked,
-            push: document.getElementById('notif-push').checked,
+            email:     document.getElementById('notif-email').checked,
+            push:      document.getElementById('notif-push').checked,
             reminders: document.getElementById('notif-reminders').checked,
-            updates: document.getElementById('notif-updates').checked,
+            updates:   document.getElementById('notif-updates').checked,
           }));
-        } catch (e) { }
+        } catch (e) {}
         showToast('Notification preferences saved!');
       }
 
-      // ── PRIVACY ──
+      // ── PRIVACY (localStorage only) ──
       function loadPrivacy() {
         try {
           const saved = JSON.parse(localStorage.getItem('pm_privacy') || '{}');
-          document.getElementById('priv-analytics').checked = saved.analytics ?? true;
+          document.getElementById('priv-analytics').checked   = saved.analytics   ?? true;
           document.getElementById('priv-personalise').checked = saved.personalise ?? true;
-          document.getElementById('priv-share').checked = saved.share ?? false;
+          document.getElementById('priv-share').checked       = saved.share       ?? false;
         } catch (e) {
-          document.getElementById('priv-analytics').checked = true;
+          document.getElementById('priv-analytics').checked   = true;
           document.getElementById('priv-personalise').checked = true;
         }
       }
@@ -1285,29 +1210,32 @@ function checkNull($dataPoint) {
       function savePrivacy() {
         try {
           localStorage.setItem('pm_privacy', JSON.stringify({
-            analytics: document.getElementById('priv-analytics').checked,
+            analytics:   document.getElementById('priv-analytics').checked,
             personalise: document.getElementById('priv-personalise').checked,
-            share: document.getElementById('priv-share').checked,
+            share:       document.getElementById('priv-share').checked,
           }));
-        } catch (e) { }
+        } catch (e) {}
         showToast('Privacy settings saved!');
       }
 
+      loadNotifications();
+      loadPrivacy();
+
       // ── FAQ ──
       function toggleFaq(btn) {
-        const item = btn.closest('.faq-item');
+        const item   = btn.closest('.faq-item');
         const isOpen = item.classList.contains('open');
         document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
         if (!isOpen) item.classList.add('open');
       }
 
       // ── LOGOUT MODAL ──
-      function openLogoutModal() { document.getElementById('logout-modal').classList.add('active'); }
+      function openLogoutModal()  { document.getElementById('logout-modal').classList.add('active'); }
       function closeLogoutModal() { document.getElementById('logout-modal').classList.remove('active'); }
       function confirmLogout() {
         closeLogoutModal();
         showToast('Logging out…');
-        setTimeout(() => { location.href = 'welcome.html'; }, 1500);
+        setTimeout(() => { location.href = 'logout.php'; }, 1500);
       }
     </script>
 </body>

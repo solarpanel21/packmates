@@ -1,6 +1,7 @@
 <?php
 session_start();
 
+
 //check if logged in
 if (!isset($_SESSION['logged_in'])) {
     header("Location: logout.php");
@@ -9,6 +10,9 @@ if (!isset($_SESSION['logged_in'])) {
 
 //server connect script
 require("connectionInclude.php");
+
+$notif_count = $mysqli->query("SELECT COUNT(*) as cnt FROM notifications WHERE userid = {$_SESSION['logged_in_user_id']} AND isread = 0")->fetch_assoc()['cnt'];
+$notif_icon = $notif_count > 0 ? 'img/notif2.png' : 'img/notif.png';
 
 /*
 //adding new row script
@@ -67,6 +71,7 @@ if ($mysqli->error) {
     print "Select query error!  Message: " . $mysqli->error;
 }
 
+
 //check access level
 /*
 if ($_SESSION['logged_in_user_user_access'] === "admin") {
@@ -91,11 +96,15 @@ function checkNull($dataPoint) {
 }
 
 $user_id = $_SESSION['logged_in_user_id'];
-$query = "SELECT tripid, tripname, city, country, startdate, enddate, iconurl FROM trips WHERE userid = $user_id AND (isdeleted = 0 OR isdeleted IS NULL) ORDER BY startdate ASC";
-$result = $mysqli->query($query);
+$query = "SELECT tripid, tripname, city, country, startdate, enddate, iconurl
+          FROM trips
+          WHERE (userid = $user_id OR tripid IN (SELECT tripid FROM tripmembers WHERE userid = $user_id))
+          AND (isdeleted = 0 OR isdeleted IS NULL)
+          ORDER BY startdate ASC";$result = $mysqli->query($query);
 if ($mysqli->error) {
     print "Query failed: " . $mysqli->error;
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -110,6 +119,8 @@ if ($mysqli->error) {
 
 <body>
     <!--Side Navbar (keep on all pages)-->
+
+
     <nav class="sidebar">
         <div class="brand">
             <img src="img/appIcon.png" alt="Packmates" class="icon">
@@ -120,10 +131,15 @@ if ($mysqli->error) {
                     class="icon"><span>Home</span></button>
             <!--<button type="reset" onclick="location.href='discover.html'"><img src="img/calendar.png" alt=""
                     class="icon"><span>Discover</span></button>-->
-            <button type="reset" onclick="location.href='notifications.php'"><img src="img/notif.png" alt=""
-                    class="icon"><span>Notifications</span></button>
-            <button type="reset" onclick="location.href='profile.php'"><img src="img/profile.png" alt=""
-                    class="icon"><span>Profile</span></button>
+            <button type="reset" onclick="location.href='notifications.php'">
+                <img src="<?php echo $notif_icon; ?>" alt="" class="icon">
+                <span>Notifications</span>
+            </button>
+            <?php include("navUser.php"); ?>
+            <button type="button" onclick="location.href='profile.php'">
+                <img class="icon" style="border-radius:7px;" src="<?php echo $nav_pfp; ?>" alt="Profile">
+                <span>Profile</span>
+            </button>
         </div>
         <div class="nav-bottom">
             <hr>
@@ -140,7 +156,7 @@ if ($mysqli->error) {
     <main>
         <header>
             <h1>Welcome traveler!</h1>
-            <button class="primary" type="reset" onclick="location.href='newTrip.php'">+ Create New Trip</button>
+            <button class="primary" type="button" onclick="location.href='newTrip.php'">+ Create New Trip</button>
         </header>
         <input type="text" placeholder="Search Your Trips...">
         <section class="trips">
@@ -149,39 +165,42 @@ if ($mysqli->error) {
             <div class="grid">
                 <?php
                 $user_id = $_SESSION['logged_in_user_id'];
-                $query = "SELECT tripid, tripname, city, country, startdate, enddate, iconurl FROM trips WHERE userid = $user_id AND (isdeleted = 0 OR isdeleted IS NULL) ORDER BY startdate ASC";
+                $query = "SELECT tripid, tripname, city, country, startdate, enddate, iconurl
+                        FROM trips
+                        WHERE (userid = $user_id OR tripid IN (SELECT tripid FROM tripmembers WHERE userid = $user_id))
+                        AND (isdeleted = 0 OR isdeleted IS NULL)
+                        ORDER BY startdate ASC";
                 $result = $mysqli->query($query);
                 if ($mysqli->error) {
                     print "Query failed: " . $mysqli->error;
                 }
 
-                while ($row = $result->fetch_array(MYSQLI_ASSOC)) {
-                    $img = !empty($row['iconurl']) ? $row['iconurl'] : 'img/placeholderTrip.png';
-                    $start = date('n/j/Y', strtotime($row['startdate']));
-                    $end = date('n/j/Y', strtotime($row['enddate']));
-                    print '
-                    <article class="card" data-search="' . strtolower($row['tripname']) . ' ' . strtolower($row['city']) . ' ' . strtolower($row['country']) . '">
-                        <div class="card-img">
-                            <img src="' . $img . '" alt="' . htmlspecialchars($row['tripname']) . '">
-                        </div>
-                        <div class="card-body">
-                            <h3>' . htmlspecialchars($row['tripname']) . '</h3>
-                            <p>' . htmlspecialchars($row['city']) . ', ' . htmlspecialchars($row['country']) . '</p>
-                            <p>' . $start . ' - ' . $end . '</p>
-                            <footer>
-                                <div class="avatars"><span></span><span></span></div>
-                                <button type="button" onclick="location.href=\'tripPreview.php?tripid=' . $row['tripid'] . '\'" class="arrow">&gt;</button>
-                            </footer>
-                        </div>
-                    </article>';
-                }
-                ?>
+include_once("getTripMembers.php");
 
+while ($row = $result->fetch_array(MYSQLI_ASSOC)) {
+    $img     = !empty($row['iconurl']) ? $row['iconurl'] : 'img/placeholderTrip.png';
+    $start   = date('n/j/Y', strtotime($row['startdate']));
+    $end     = date('n/j/Y', strtotime($row['enddate']));
+    $members = getTripMembers($mysqli, $row['tripid']);
+    $avatars = renderMemberAvatars($members, true);
 
-                <!--More trip cards can go here depending how many user has (will be implemented next milestone)-->
-
-
-
+    print '
+    <article class="card" data-search="' . strtolower($row['tripname']) . ' ' . strtolower($row['city']) . ' ' . strtolower($row['country']) . '">
+        <div class="card-img">
+            <img src="' . $img . '" alt="' . htmlspecialchars($row['tripname']) . '">
+        </div>
+        <div class="card-body">
+            <h3>' . htmlspecialchars($row['tripname']) . '</h3>
+            <p>' . htmlspecialchars($row['city']) . ', ' . htmlspecialchars($row['country']) . '</p>
+            <p>' . $start . ' - ' . $end . '</p>
+            <footer>
+                ' . $avatars . '
+                <button type="button" onclick="location.href=\'tripPreview.php?tripid=' . $row['tripid'] . '\'" class="arrow">&gt;</button>
+            </footer>
+        </div>
+    </article>';
+}
+?>
             </div>
         </section>
     </main>

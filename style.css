@@ -1064,3 +1064,25 @@ textarea::placeholder {
   object-fit: cover;
   display: block;
 }
+
+.member-avatars {
+  display: flex;
+  align-items: center;
+}
+
+.member-avatars.overlap .member-avatar {
+  margin-left: -8px;
+}
+
+.member-avatars.overlap .member-avatar:first-child {
+  margin-left: 0;
+}
+
+.member-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  object-fit: cover;
+  background: #e0ddd8;
+}

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 08, 2026 at 06:33 PM
+-- Generation Time: Mar 11, 2026 at 09:54 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -36,6 +36,13 @@ CREATE TABLE `invites` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
+-- Dumping data for table `invites`
+--
+
+INSERT INTO `invites` (`inviteid`, `code`, `uses`, `tripid`, `userid`) VALUES
+(1, '9236c5bf0016631f', 4, 14, 1);
+
+--
 -- Indexes for dumped tables
 --
 
@@ -55,7 +62,7 @@ ALTER TABLE `invites`
 -- AUTO_INCREMENT for table `invites`
 --
 ALTER TABLE `invites`
-  MODIFY `inviteid` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `inviteid` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- Constraints for dumped tables

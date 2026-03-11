@@ -1,6 +1,8 @@
 <?php
 session_start();
 
+
+
 // Check if logged in
 if (!isset($_SESSION['logged_in'])) {
     header("Location: logout.php");
@@ -8,6 +10,9 @@ if (!isset($_SESSION['logged_in'])) {
 }
 
 require("connectionInclude.php");
+
+$notif_count = $mysqli->query("SELECT COUNT(*) as cnt FROM notifications WHERE userid = {$_SESSION['logged_in_user_id']} AND isread = 0")->fetch_assoc()['cnt'];
+$notif_icon = $notif_count > 0 ? 'img/notif2.png' : 'img/notif.png';
 
 // Check if tripid is provided
 if (!isset($_GET['tripid'])) {
@@ -20,13 +25,24 @@ $user_id = $_SESSION['logged_in_user_id'];
 
 // Make sure this trip belongs to the logged in user
 $trip_query = $mysqli->query("SELECT * FROM trips WHERE tripid = $tripid AND userid = $user_id AND (isdeleted = 0 OR isdeleted IS NULL)");
-if ($trip_query->num_rows === 0) {
+$member_query = $mysqli->query("SELECT * FROM tripmembers WHERE tripid = $tripid AND userid = $user_id ");
+if (($trip_query->num_rows === 0 ) && ($member_query->num_rows === 0 )) {
     header("Location: home.php");
     exit();
 }
-$trip = $trip_query->fetch_assoc();
+
+$trip_query2 = $mysqli->query("SELECT * FROM trips WHERE tripid = $tripid AND (isdeleted = 0 OR isdeleted IS NULL)");
+$trip = $trip_query2->fetch_assoc();
 
 
+// Generate invite code
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_invite'])) {
+    $uses = max(1, (int)$_POST['uses']);
+    $code = bin2hex(random_bytes(8)); // 16 char hex string
+    $mysqli->query("INSERT INTO invites (code, uses, tripid, userid) VALUES ('$code', $uses, $tripid, $user_id)");
+    echo json_encode(['success' => true, 'code' => $code]);
+    exit();
+}
 
 // Handle notes save (POST from inline edit)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_notes'])) {
@@ -64,10 +80,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_item'])) {
     exit();
 }
 
+// Handle custom item check toggle
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_custom'])) {
+    $itemid  = (int)$_POST['itemid'];
+    $checked = (int)$_POST['checked'];
+    $mysqli->query("UPDATE customitems SET ischecked = $checked WHERE customid = $itemid AND tripid = $tripid AND userid = $user_id");
+    echo json_encode(['success' => true]);
+    exit();
+}
+
 // Handle trip delete
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_trip'])) {
     $mysqli->query("UPDATE trips SET isdeleted = 1 WHERE tripid = $tripid AND userid = $user_id");
     echo json_encode(['success' => true]);
+    exit();
+}
+
+
+// Handle quantity update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_quantity'])) {
+    $itemid   = (int)$_POST['itemid'];
+    $quantity = max(1, (int)$_POST['quantity']);
+    $existing = $mysqli->query("SELECT id FROM tripitems WHERE tripid = $tripid AND itemid = $itemid");
+    if ($existing->num_rows > 0) {
+        $mysqli->query("UPDATE tripitems SET quantity = $quantity WHERE tripid = $tripid AND itemid = $itemid");
+    } else {
+        $mysqli->query("INSERT INTO tripitems (tripid, itemid, ischecked, isdismissed, quantity) VALUES ($tripid, $itemid, 0, 0, $quantity)");
+    }
+    echo json_encode(['success' => true, 'error' => $mysqli->error, 'rows' => $existing->num_rows]);
     exit();
 }
 
@@ -88,8 +128,9 @@ $activity_list = count($activitytags) ? "'" . implode("','", array_map([$mysqli,
 $weather_condition  = $weather_list  ? "si.weathertag IS NULL OR si.weathertag IN ($weather_list)"  : "si.weathertag IS NULL";
 $activity_condition = $activity_list ? "si.activitytag IS NULL OR si.activitytag IN ($activity_list)" : "si.activitytag IS NULL";
 $items_query = $mysqli->query("
-    SELECT si.itemid, si.itemname, si.category, si.weathertag, si.activitytag,
-           ti.ischecked, ti.isdismissed
+    SELECT si.itemid, si.itemname, si.category,
+           COALESCE(ti.ischecked, 0) AS ischecked,
+           COALESCE(ti.quantity, 1)  AS quantity
     FROM suggesteditems si
     LEFT JOIN tripitems ti ON ti.itemid = si.itemid AND ti.tripid = $tripid
     WHERE ($weather_condition)
@@ -104,9 +145,34 @@ while ($row = $items_query->fetch_assoc()) {
     $items_by_category[$row['category']][] = $row;
 }
 
+// Pull custom items for this trip
+$custom_query = $mysqli->query("
+    SELECT customid, customname, ischecked, quantity
+    FROM customitems
+    WHERE tripid = $tripid AND userid = $user_id AND (isdismissed = 0 OR isdismissed IS NULL)
+");
+$custom_items = [];
+while ($row = $custom_query->fetch_assoc()) {
+    $custom_items[] = $row;
+}
+
 // Check if anything is null helper
 function checkNull($dataPoint) {
     return ($dataPoint === null || $dataPoint === "") ? "N/A" : $dataPoint;
+}
+
+
+
+    // Pull custom items for this trip
+$custom_query = $mysqli->query("
+    SELECT customid, customname, ischecked, quantity
+    FROM customitems
+    WHERE tripid = $tripid AND userid = $user_id AND (isdismissed = 0 OR isdismissed IS NULL)
+");
+$custom_items = [];
+while ($row = $custom_query->fetch_assoc()) {
+    $custom_items[] = $row;
+
 }
 
 // Format date helper
@@ -528,8 +594,15 @@ function formatDate($d) {
         </div>
         <div class="nav-buttons">
             <button type="reset" onclick="location.href='home.php'"><img src="img/home.png" alt="" class="icon"><span>Home</span></button>
-            <button type="reset" onclick="location.href='notifications.php'"><img src="img/notif.png" alt="" class="icon"><span>Notifications</span></button>
-            <button type="reset" onclick="location.href='profile.php'"><img src="img/profile.png" alt="" class="icon"><span>Profile</span></button>
+            <button type="reset" onclick="location.href='notifications.php'">
+                <img src="<?php echo $notif_icon; ?>" alt="" class="icon">
+                <span>Notifications</span>
+            </button>
+            <?php include("navUser.php"); ?>
+            <button type="button" onclick="location.href='profile.php'">
+                <img class="icon" style="border-radius:7px;" src="<?php echo $nav_pfp; ?>" alt="Profile">
+                <span>Profile</span>
+            </button>
         </div>
         <div class="nav-bottom">
             <hr>
@@ -550,9 +623,17 @@ function formatDate($d) {
                         <h1><?php echo htmlspecialchars($trip['tripname']); ?></h1>
                         <p><?php echo htmlspecialchars($trip['city']); ?>, <?php echo htmlspecialchars($trip['country']); ?></p>
                         <p><?php echo formatDate($trip['startdate']); ?> – <?php echo formatDate($trip['enddate']); ?></p>
+                                <?php
+                include_once("getTripMembers.php");
+                $members = getTripMembers($mysqli, $tripid);
+                echo renderMemberAvatars($members, false); // false = separated
+                ?>
 
 
                     </div>
+
+
+
 
                     <div>
                     <button id="deleteTripBtn" type="button" style="background:#fdecea;color:#c0392b;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-family:inherit;">
@@ -564,6 +645,38 @@ function formatDate($d) {
                     </button>
                     </div>
 
+                </div>
+
+
+                <button id="shareBtn" type="button" style="background:#e8f5e0;color:#3a6b1a;border:1px solid #5f9d30;padding:8px 16px;border-radius:6px;cursor:pointer;font-family:inherit;">
+                    Share Trip
+                </button>
+
+
+
+                <!-- Share modal -->
+                <div id="shareModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:center;justify-content:center;">
+                    <div style="background:#fff;border-radius:12px;padding:24px;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+                        <h3 style="margin-bottom:16px;">Share Trip</h3>
+                        <label style="font-size:0.85rem;color:#666;">Number of uses</label>
+                        <input type="number" id="inviteUses" min="1" value="1"
+                            style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;margin:6px 0 12px;font-family:inherit;">
+                        <button id="generateInviteBtn" class="primary" type="button" style="width:100%;margin-bottom:12px;">Generate Invite Link</button>
+                        <div id="inviteLinkWrap" style="display:none;">
+                            <label style="font-size:0.85rem;color:#666;">Invite link</label>
+                            <div style="display:flex;gap:8px;margin-top:6px;">
+                                <input type="text" id="inviteLinkDisplay" readonly
+                                    style="flex:1;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:0.85rem;background:#f5f5f5;">
+                                <button id="copyLinkBtn" type="button"
+                                        style="padding:8px 14px;border:1px solid #ccc;border-radius:6px;cursor:pointer;background:#f5f5f5;">Copy</button>
+                            </div>
+                            <p id="copyConfirm" style="color:#3a6b1a;font-size:0.8rem;margin-top:6px;display:none;">Copied!</p>
+                        </div>
+                        <button type="button" onclick="document.getElementById('shareModal').style.display='none'"
+                                style="margin-top:12px;width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;background:none;cursor:pointer;font-family:inherit;">
+                            Close
+                        </button>
+                    </div>
                 </div>
 
                 <hr class="tripDivider">
@@ -631,6 +744,34 @@ function formatDate($d) {
 
             <!-- Packing items -->
             <div class="packingPanelBody" id="packingPanelBody">
+                <?php if (!empty($custom_items)): ?>
+                    <!-- Custom items -->
+                <div class="packingCategoryGroup" id="customItemsGroup">
+                    <div class="packingCategoryLabel">
+                        <span class="suggested-dot"></span>Custom Items
+                    </div>
+                    <?php foreach ($custom_items as $item): ?>
+                    <div class="packingPanelItem"
+                        data-itemid="custom_<?php echo $item['customid']; ?>"
+                        data-checked="<?php echo $item['ischecked'] ? '1' : '0'; ?>"
+                        data-custom="1">
+                        <button class="packingPanelCheck <?php echo $item['ischecked'] ? 'packingPanelCheck--checked' : ''; ?>"></button>
+                        <span class="packingPanelItemName <?php echo $item['ischecked'] ? 'packingPanelItemName--packed' : ''; ?>">
+                            <?php echo htmlspecialchars($item['customname']); ?>
+                        </span>
+                        <!-- Quantity -->
+        <div class="packing-qty-wrap" style="display:inline-flex;align-items:center;gap:4px;">
+
+               <p><?php echo max(1, (int)$item['quantity']); ?>x</p>
+
+        </div>
+                        <button class="panel-dismiss" data-itemid="custom_<?php echo $item['customid']; ?>" data-custom="1"
+                                title="Remove"
+                                style="width:16px;height:16px;border-radius:50%;border:none;background:#fdecea;cursor:pointer;color:#c0392b;font-size:0.65rem;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;">✕</button>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+        <?php endif; ?>
                 <?php
                 $total  = 0;
                 $packed = 0;
@@ -653,6 +794,13 @@ function formatDate($d) {
                         <span class="packingPanelItemName <?php echo $item['ischecked'] ? 'packingPanelItemName--packed' : ''; ?>">
                             <?php echo htmlspecialchars($item['itemname']); ?>
                         </span>
+                         <!-- Quantity -->
+        <div class="packing-qty-wrap" style="display:inline-flex;align-items:center;gap:4px;">
+
+               <p><?php echo max(1, (int)$item['quantity']); ?>x</p>
+
+        </div>
+
                         <button class="panel-dismiss" data-itemid="<?php echo $item['itemid']; ?>"
                                 title="Remove"
                                 style="width:16px;height:16px;border-radius:50%;border:none;background:#fdecea;cursor:pointer;color:#c0392b;font-size:0.65rem;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;">✕</button>
@@ -704,46 +852,86 @@ function formatDate($d) {
             });
         });
 
-        // ── Check toggle ──
-        document.querySelectorAll('.packingPanelCheck').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const item    = this.closest('.packingPanelItem');
-                const itemid  = item.dataset.itemid;
-                const checked = item.dataset.checked === '1' ? 0 : 1;
+// ── Check toggle (handles both regular and custom items) ──
+document.querySelectorAll('.packingPanelCheck').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const item    = this.closest('.packingPanelItem');
+        const rawId   = item.dataset.itemid;
+        const isCustom = item.dataset.custom === '1';
+        const dbId    = isCustom ? rawId.replace('custom_', '') : rawId;
+        const checked = item.dataset.checked === '1' ? 0 : 1;
+        const toggle  = isCustom ? 'toggle_custom' : 'toggle_item';
 
-                item.dataset.checked = checked;
-                this.classList.toggle('packingPanelCheck--checked', checked === 1);
-                item.querySelector('.packingPanelItemName').classList.toggle('packingPanelItemName--packed', checked === 1);
+        item.dataset.checked = checked;
+        this.classList.toggle('packingPanelCheck--checked', checked === 1);
+        item.querySelector('.packingPanelItemName').classList.toggle('packingPanelItemName--packed', checked === 1);
 
-                fetch('tripPreview.php?tripid=' + TRIPID, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `toggle_item=1&itemid=${itemid}&checked=${checked}`
-                });
-
-                updateProgress();
-            });
+        fetch('tripPreview.php?tripid=' + TRIPID, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `${toggle}=1&itemid=${dbId}&checked=${checked}`
         });
 
-        // ── Dismiss (X) buttons ──
-        document.querySelectorAll('.panel-dismiss').forEach(btn => {
+        updateProgress();
+    });
+});
+
+// ── Dismiss (handles both regular and custom items) ──
+document.querySelectorAll('.panel-dismiss').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const rawId   = this.dataset.itemid;
+        const isCustom = this.dataset.custom === '1';
+        const dbId    = isCustom ? rawId.replace('custom_', '') : rawId;
+        const dismiss = isCustom ? 'dismiss_custom' : 'dismiss_item';
+        const item    = this.closest('.packingPanelItem');
+        const group   = item.closest('.packingCategoryGroup');
+
+        fetch('tripPreview.php?tripid=' + TRIPID, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `${dismiss}=1&itemid=${dbId}`
+        });
+
+        item.remove();
+        if (!group.querySelectorAll('.packingPanelItem').length) group.remove();
+        updateProgress();
+    });
+});
+
+
+            // ── Quantity buttons ──
+        document.querySelectorAll('.packing-qty-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const itemid = this.dataset.itemid;
-                const item   = this.closest('.packingPanelItem');
-                const group  = item.closest('.packingCategoryGroup');
+                const input  = document.querySelector(`.packing-qty[data-itemid="${itemid}"]`);
+                let val = parseInt(input.value) || 1;
+                if (this.classList.contains('packing-qty-minus')) val = Math.max(1, val - 1);
+                if (this.classList.contains('packing-qty-plus'))  val = val + 1;
+                console.log('qty buttons found:', document.querySelectorAll('.packing-qty-btn').length);
+                input.value = val;
 
-                fetch('tripPreview.php?tripid=' + TRIPID, {
+                fetch('trippreview.php?tripid=' + TRIPID, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `dismiss_item=1&itemid=${itemid}`
-                });
-
-                item.remove();
-                // Remove category header if no items left
-                if (!group.querySelectorAll('.packingPanelItem').length) group.remove();
-                updateProgress();
+                    body: `update_quantity=1&itemid=${itemid}&quantity=${val}`
+                }).then(res => res.json()).then(data => console.log('qty response:', data));
             });
         });
+
+      // ── Quantity manual input ──
+        document.querySelectorAll('.packing-qty').forEach(input => {
+            input.addEventListener('change', function() {
+                const itemid   = this.dataset.itemid;
+                const quantity = Math.max(1, parseInt(this.value) || 1);
+                this.value = quantity;
+                fetch('trippreview.php?tripid=' + TRIPID, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `update_quantity=1&itemid=${itemid}&quantity=${quantity}`
+                }).then(res => res.json()).then(data => console.log('qty response:', data));
+            });
+        });   // <-- this closing }); was missing
+
 
         // ── Save notes ──
         document.getElementById('saveNotesBtn').addEventListener('click', function() {
@@ -808,6 +996,37 @@ function formatDate($d) {
                 });
             }
         });
+
+        // ── Share / invite ──
+document.getElementById('shareBtn').addEventListener('click', () => {
+    document.getElementById('shareModal').style.display = 'flex';
+    document.getElementById('inviteLinkWrap').style.display = 'none';
+    document.getElementById('inviteUses').value = 1;
+});
+
+document.getElementById('generateInviteBtn').addEventListener('click', function() {
+    const uses = Math.max(1, parseInt(document.getElementById('inviteUses').value) || 1);
+    fetch('tripPreview.php?tripid=' + TRIPID, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `generate_invite=1&uses=${uses}`
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            const link = `${window.location.origin}/packmates/joinTrip.php?code=${data.code}`;
+            document.getElementById('inviteLinkDisplay').value = link;
+            document.getElementById('inviteLinkWrap').style.display = 'block';
+        }
+    });
+});
+
+document.getElementById('copyLinkBtn').addEventListener('click', function() {
+    const input = document.getElementById('inviteLinkDisplay');
+    navigator.clipboard.writeText(input.value).then(() => {
+        const confirm = document.getElementById('copyConfirm');
+        confirm.style.display = 'block';
+        setTimeout(() => confirm.style.display = 'none', 2000);
+    });
+});
     </script>
 </body>
 </html>

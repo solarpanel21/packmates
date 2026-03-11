@@ -1,9 +1,11 @@
 <?php
 session_start();
 include("connectionInclude.php");
+include("checkNotifications.php");
 
 if (isset($_SESSION['logged_in'])) {
     header("Location: home.php");
+    checkTripNotifications($mysqli, $_SESSION['logged_in_user_id']);
     exit();
 }
 
@@ -22,6 +24,8 @@ if (isset($_POST['submit']) && isset($_POST['email']) && isset($_POST['password'
             $_SESSION['logged_in_user'] = $row->username;
             $_SESSION['logged_in_user_id'] = $row->userid;
             $_SESSION['logged_in_user_fullname'] = $row->username;
+            checkTripNotifications($mysqli);
+
             header("Location: home.php");
             exit();
             $found = true;

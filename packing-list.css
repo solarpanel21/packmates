@@ -104,7 +104,8 @@ body>main {
     gap: 10px;
     padding: 10px 12px;
     border-radius: 12px;
-    background: #fff;
+    margin-bottom: 2px;
+    background: linear-gradient(#e7f0e3, #dde8d8);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     align-items: flex-start;
     transition: box-shadow 0.15s ease, transform 0.1s ease;
