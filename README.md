@@ -10,4 +10,23 @@ To run:
 To stop:
 1. docker compose down
 	OR
+
    ctrl + c (in terminal)
+
+
+SAMPLE USER INFO (for viewing sample data)
+	Account 1:
+		email: john@gmail.com
+		password: password
+	Account 2:
+		email: user2@outlook.com
+		password: pastawad
+	Account 3:
+		email: coolguy@ucf.edu
+		password: coolman
+	Account 4:
+		email:user4@email.com
+		password:password2
+	Account 5:
+		email: user5@yahoo.com
+		password: password3
