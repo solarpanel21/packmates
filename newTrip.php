@@ -12,7 +12,16 @@ if (!isset($_SESSION['logged_in'])) {
     exit();
 }
 
-$notif_count = $mysqli->query("SELECT COUNT(*) as cnt FROM notifications WHERE userid = {$_SESSION['logged_in_user_id']} AND isread = 0")->fetch_assoc()['cnt'];
+$user_id = filter_var($_SESSION['logged_in_user_id'] ?? null, FILTER_VALIDATE_INT);
+if ($user_id === false || $user_id === null) {
+    header("Location: logout.php");
+    exit();
+}
+
+$notif_stmt = $mysqli->prepare("SELECT COUNT(*) as cnt FROM notifications WHERE userid = ? AND isread = 0");
+$notif_stmt->bind_param("i", $user_id);
+$notif_stmt->execute();
+$notif_count = $notif_stmt->get_result()->fetch_assoc()['cnt'];
 $notif_icon = $notif_count > 0 ? 'img/notif2.png' : 'img/notif.png';
 
 
@@ -31,20 +40,26 @@ function checkNull($dataPoint) {
 
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_trip'])) {
-    $tripname   = $mysqli->real_escape_string($_POST['tripname']);
-    $city       = $mysqli->real_escape_string($_POST['tripCity']);
-    $country    = $mysqli->real_escape_string($_POST['tripCountry']);
+    $tripname   = trim($_POST['tripname'] ?? '');
+    $city       = trim($_POST['tripCity'] ?? '');
+    $country    = trim($_POST['tripCountry'] ?? '');
     $lat        = (float)$_POST['tripLat'];
     $lon        = (float)$_POST['tripLon'];
-    $startdate  = $mysqli->real_escape_string($_POST['startdate']);
-    $enddate    = $mysqli->real_escape_string($_POST['enddate']);
-    $notes      = $mysqli->real_escape_string($_POST['notes']);
-    $activities = $mysqli->real_escape_string($_POST['activitytags']);
-    $userid     = $_SESSION['logged_in_user_id'];
-    $iconurl = $mysqli->real_escape_string($_POST['iconurl'] ?? '');
+    $startdate  = trim($_POST['startdate'] ?? '');
+    $enddate    = trim($_POST['enddate'] ?? '');
+    $notes      = trim($_POST['notes'] ?? '');
+    $activity_raw = trim($_POST['activitytags'] ?? '');
+    $iconurl = trim($_POST['iconurl'] ?? '');
 
+    $activities_arr = array_values(array_filter(array_map(static function ($tag) {
+        $tag = strtolower(trim($tag));
+        return preg_match('/^[a-z0-9_-]{1,32}$/', $tag) ? $tag : '';
+    }, explode(',', $activity_raw))));
+    $activities = implode(',', $activities_arr);
 
-    if (empty($tripname) || empty($city) || empty($country) || empty($startdate) || empty($enddate)) {
+    $start_ok = DateTime::createFromFormat('Y-m-d', $startdate);
+    $end_ok = DateTime::createFromFormat('Y-m-d', $enddate);
+    if (empty($tripname) || empty($city) || empty($country) || !$start_ok || !$end_ok) {
         $error = "Please fill in all required fields.";
     } else if ($lat === 0.0 && $lon === 0.0) {
         $error = "Please select a destination from the search dropdown.";
@@ -64,37 +79,56 @@ function checkNull($dataPoint) {
 
 
 
-    $insert = "INSERT INTO trips (tripname, city, country, latitude, longitude, startdate, enddate, creationdate, notes, weathertags, activitytags, userid, iconurl)
-               VALUES ('$tripname', '$city', '$country', $lat, $lon, '$startdate', '$enddate', '$creationdate', '$notes', '$weathertags', '$activities', $userid, '$iconurl')";
-    $mysqli->query($insert);
-
-    if ($mysqli->error) {
+    $insert_stmt = $mysqli->prepare("INSERT INTO trips (tripname, city, country, latitude, longitude, startdate, enddate, creationdate, notes, weathertags, activitytags, userid, iconurl)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $insert_stmt->bind_param("sssddssssssis", $tripname, $city, $country, $lat, $lon, $startdate, $enddate, $creationdate, $notes, $weathertags, $activities, $user_id, $iconurl);
+    if (!$insert_stmt->execute()) {
         $error = "Error saving trip: " . $mysqli->error;
     } else {
         // Get the new trip's id
         $new_tripid = $mysqli->insert_id;
 
         // Build the same tag conditions to find matching suggested items
-        $weather_list  = count($tags)         ? "'" . implode("','", array_map([$mysqli, 'real_escape_string'], $tags))         . "'" : null;
-        $activity_list = !empty($activities)  ? "'" . implode("','", array_map([$mysqli, 'real_escape_string'], explode(',', $activities))) . "'" : null;
+        $suggested_sql = "SELECT itemid FROM suggesteditems WHERE ";
+        $types = '';
+        $params = [];
 
-        $weather_condition  = $weather_list  ? "weathertag IS NULL OR weathertag IN ($weather_list)"  : "weathertag IS NULL";
-        $activity_condition = $activity_list ? "activitytag IS NULL OR activitytag IN ($activity_list)" : "activitytag IS NULL";
+        if (count($tags) > 0) {
+            $weather_placeholders = implode(',', array_fill(0, count($tags), '?'));
+            $suggested_sql .= "(weathertag IS NULL OR weathertag IN ($weather_placeholders))";
+            $types .= str_repeat('s', count($tags));
+            foreach ($tags as $tag) {
+                $params[] = $tag;
+            }
+        } else {
+            $suggested_sql .= "weathertag IS NULL";
+        }
+
+        if (count($activities_arr) > 0) {
+            $activity_placeholders = implode(',', array_fill(0, count($activities_arr), '?'));
+            $suggested_sql .= " AND (activitytag IS NULL OR activitytag IN ($activity_placeholders))";
+            $types .= str_repeat('s', count($activities_arr));
+            foreach ($activities_arr as $tag) {
+                $params[] = $tag;
+            }
+        } else {
+            $suggested_sql .= " AND activitytag IS NULL";
+        }
 
         // Pull matching suggested items
-        $suggested = $mysqli->query("
-            SELECT itemid FROM suggesteditems
-            WHERE ($weather_condition)
-            AND ($activity_condition)
-        ");
+        $suggested_stmt = $mysqli->prepare($suggested_sql);
+        if ($types !== '') {
+            $suggested_stmt->bind_param($types, ...$params);
+        }
+        $suggested_stmt->execute();
+        $suggested = $suggested_stmt->get_result();
 
-        if ($suggested->num_rows === 0) die("No suggested items matched the tags. weather_condition: $weather_condition | activity_condition: $activity_condition");
+        if ($suggested->num_rows === 0) die("No suggested items matched the selected tags.");
+        $insert_item_stmt = $mysqli->prepare("INSERT INTO tripitems (tripid, itemid, ischecked, isdismissed, quantity) VALUES (?, ?, 0, 0, 1)");
         while ($item = $suggested->fetch_assoc()) {
-            $mysqli->query("
-                INSERT INTO tripitems (tripid, itemid, ischecked, isdismissed, quantity)
-                VALUES ($new_tripid, {$item['itemid']}, 0, 0, 1)
-            ");
-            if ($mysqli->error) die("tripitems insert error: " . $mysqli->error);
+            $item_id = (int)$item['itemid'];
+            $insert_item_stmt->bind_param("ii", $new_tripid, $item_id);
+            if (!$insert_item_stmt->execute()) die("tripitems insert error: " . $mysqli->error);
         }
 
         include("checkNotifications.php");

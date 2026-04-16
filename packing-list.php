@@ -9,38 +9,65 @@ if (!isset($_SESSION['logged_in'])) {
 
 require("connectionInclude.php");
 
-$notif_count = $mysqli->query("SELECT COUNT(*) as cnt FROM notifications WHERE userid = {$_SESSION['logged_in_user_id']} AND isread = 0")->fetch_assoc()['cnt'];
+$user_id = filter_var($_SESSION['logged_in_user_id'] ?? null, FILTER_VALIDATE_INT);
+if ($user_id === false || $user_id === null) {
+    header("Location: logout.php");
+    exit();
+}
+
+$notif_stmt = $mysqli->prepare("SELECT COUNT(*) as cnt FROM notifications WHERE userid = ? AND isread = 0");
+$notif_stmt->bind_param("i", $user_id);
+$notif_stmt->execute();
+$notif_count = $notif_stmt->get_result()->fetch_assoc()['cnt'];
 $notif_icon = $notif_count > 0 ? 'img/notif2.png' : 'img/notif.png';
 
 // Check if tripid is provided
-if (!isset($_GET['tripid'])) {
+$tripid = filter_input(INPUT_GET, 'tripid', FILTER_VALIDATE_INT);
+if ($tripid === false || $tripid === null) {
     header("Location: home.php");
     exit();
 }
 
-$tripid  = (int)$_GET['tripid'];
-$user_id = $_SESSION['logged_in_user_id'];
-
 // Make sure this trip belongs to the logged in user
-$trip_query = $mysqli->query("SELECT * FROM trips WHERE tripid = $tripid AND userid = $user_id AND (isdeleted = 0 OR isdeleted IS NULL)");
-$member_query = $mysqli->query("SELECT * FROM tripmembers WHERE tripid = $tripid AND userid = $user_id ");
+$trip_stmt = $mysqli->prepare("SELECT * FROM trips WHERE tripid = ? AND userid = ? AND (isdeleted = 0 OR isdeleted IS NULL)");
+$trip_stmt->bind_param("ii", $tripid, $user_id);
+$trip_stmt->execute();
+$trip_query = $trip_stmt->get_result();
+
+$member_stmt = $mysqli->prepare("SELECT * FROM tripmembers WHERE tripid = ? AND userid = ?");
+$member_stmt->bind_param("ii", $tripid, $user_id);
+$member_stmt->execute();
+$member_query = $member_stmt->get_result();
 if (($trip_query->num_rows === 0 ) && ($member_query->num_rows === 0 )) {
     header("Location: home.php");
     exit();
 }
 
-$trip_query2 = $mysqli->query("SELECT * FROM trips WHERE tripid = $tripid AND (isdeleted = 0 OR isdeleted IS NULL)");
-$trip = $trip_query2->fetch_assoc();
+$trip_data_stmt = $mysqli->prepare("SELECT * FROM trips WHERE tripid = ? AND (isdeleted = 0 OR isdeleted IS NULL)");
+$trip_data_stmt->bind_param("i", $tripid);
+$trip_data_stmt->execute();
+$trip = $trip_data_stmt->get_result()->fetch_assoc();
 
 
 // Handle item dismiss (POST from X button)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dismiss_item'])) {
-    $itemid = (int)$_POST['itemid'];
-    $existing = $mysqli->query("SELECT id FROM tripitems WHERE tripid = $tripid AND itemid = $itemid");
+    $itemid = filter_input(INPUT_POST, 'itemid', FILTER_VALIDATE_INT);
+    if ($itemid === false || $itemid === null) {
+        echo json_encode(['success' => false, 'error' => 'Invalid item id']);
+        exit();
+    }
+    $existing_stmt = $mysqli->prepare("SELECT id FROM tripitems WHERE tripid = ? AND itemid = ?");
+    $existing_stmt->bind_param("ii", $tripid, $itemid);
+    $existing_stmt->execute();
+    $existing = $existing_stmt->get_result();
     if ($existing->num_rows > 0) {
-        $mysqli->query("UPDATE tripitems SET isdismissed = 1 WHERE tripid = $tripid AND itemid = $itemid");
+        $update_stmt = $mysqli->prepare("UPDATE tripitems SET isdismissed = 1 WHERE tripid = ? AND itemid = ?");
+        $update_stmt->bind_param("ii", $tripid, $itemid);
+        $update_stmt->execute();
     } else {
-        $mysqli->query("INSERT INTO tripitems (tripid, itemid, ischecked, isdismissed, quantity) VALUES ($tripid, $itemid, 0, 1, 1)");
+        $insert_stmt = $mysqli->prepare("INSERT INTO tripitems (tripid, itemid, ischecked, isdismissed, quantity) VALUES (?, ?, 0, 1, 1)");
+        $insert_stmt->bind_param("ii", $tripid, $itemid);
+        $insert_stmt->execute();
     }
     echo json_encode(['success' => true]);
     exit();
@@ -48,13 +75,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dismiss_item'])) {
 
 // Handle item check toggle
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_item'])) {
-    $itemid  = (int)$_POST['itemid'];
-    $checked = (int)$_POST['checked'];
-    $existing = $mysqli->query("SELECT id FROM tripitems WHERE tripid = $tripid AND itemid = $itemid");
+    $itemid = filter_input(INPUT_POST, 'itemid', FILTER_VALIDATE_INT);
+    $checked = filter_input(INPUT_POST, 'checked', FILTER_VALIDATE_INT);
+    if ($itemid === false || $itemid === null || $checked === false || $checked === null) {
+        echo json_encode(['success' => false, 'error' => 'Invalid input']);
+        exit();
+    }
+    $checked = $checked ? 1 : 0;
+    $existing_stmt = $mysqli->prepare("SELECT id FROM tripitems WHERE tripid = ? AND itemid = ?");
+    $existing_stmt->bind_param("ii", $tripid, $itemid);
+    $existing_stmt->execute();
+    $existing = $existing_stmt->get_result();
     if ($existing->num_rows > 0) {
-        $mysqli->query("UPDATE tripitems SET ischecked = $checked WHERE tripid = $tripid AND itemid = $itemid");
+        $update_stmt = $mysqli->prepare("UPDATE tripitems SET ischecked = ? WHERE tripid = ? AND itemid = ?");
+        $update_stmt->bind_param("iii", $checked, $tripid, $itemid);
+        $update_stmt->execute();
     } else {
-        $mysqli->query("INSERT INTO tripitems (tripid, itemid, ischecked, isdismissed, quantity) VALUES ($tripid, $itemid, $checked, 0, 1)");
+        $insert_stmt = $mysqli->prepare("INSERT INTO tripitems (tripid, itemid, ischecked, isdismissed, quantity) VALUES (?, ?, ?, 0, 1)");
+        $insert_stmt->bind_param("iii", $tripid, $itemid, $checked);
+        $insert_stmt->execute();
     }
     echo json_encode(['success' => true]);
     exit();
@@ -62,13 +101,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_item'])) {
 
 // Handle quantity update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_quantity'])) {
-    $itemid   = (int)$_POST['itemid'];
-    $quantity = max(1, (int)$_POST['quantity']);
-    $existing = $mysqli->query("SELECT id FROM tripitems WHERE tripid = $tripid AND itemid = $itemid");
+    $itemid = filter_input(INPUT_POST, 'itemid', FILTER_VALIDATE_INT);
+    $quantity = filter_input(INPUT_POST, 'quantity', FILTER_VALIDATE_INT);
+    if ($itemid === false || $itemid === null || $quantity === false || $quantity === null) {
+        echo json_encode(['success' => false, 'error' => 'Invalid input']);
+        exit();
+    }
+    $quantity = max(1, $quantity);
+    $existing_stmt = $mysqli->prepare("SELECT id FROM tripitems WHERE tripid = ? AND itemid = ?");
+    $existing_stmt->bind_param("ii", $tripid, $itemid);
+    $existing_stmt->execute();
+    $existing = $existing_stmt->get_result();
     if ($existing->num_rows > 0) {
-        $mysqli->query("UPDATE tripitems SET quantity = $quantity WHERE tripid = $tripid AND itemid = $itemid");
+        $update_stmt = $mysqli->prepare("UPDATE tripitems SET quantity = ? WHERE tripid = ? AND itemid = ?");
+        $update_stmt->bind_param("iii", $quantity, $tripid, $itemid);
+        $update_stmt->execute();
     } else {
-        $mysqli->query("INSERT INTO tripitems (tripid, itemid, ischecked, isdismissed, quantity) VALUES ($tripid, $itemid, 0, 0, $quantity)");
+        $insert_stmt = $mysqli->prepare("INSERT INTO tripitems (tripid, itemid, ischecked, isdismissed, quantity) VALUES (?, ?, 0, 0, ?)");
+        $insert_stmt->bind_param("iii", $tripid, $itemid, $quantity);
+        $insert_stmt->execute();
     }
     echo json_encode(['success' => true, 'error' => $mysqli->error, 'rows' => $existing->num_rows]);
     exit();
@@ -76,11 +127,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_quantity'])) {
 
 // Handle custom item add
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_custom_item'])) {
-    $itemname = trim($mysqli->real_escape_string($_POST['itemname']));
+    $itemname = trim($_POST['itemname'] ?? '');
     if (!empty($itemname)) {
         $timecreated = date('Y-m-d H:i:s');
-        $mysqli->query("INSERT INTO customitems (customname, timecreated, userid, tripid, ischecked, isdismissed, quantity)
-                        VALUES ('$itemname', '$timecreated', $user_id, $tripid, 0, 0, 1)");
+        $insert_custom_stmt = $mysqli->prepare("INSERT INTO customitems (customname, timecreated, userid, tripid, ischecked, isdismissed, quantity)
+                        VALUES (?, ?, ?, ?, 0, 0, 1)");
+        $insert_custom_stmt->bind_param("ssii", $itemname, $timecreated, $user_id, $tripid);
+        $insert_custom_stmt->execute();
     }
     echo json_encode(['success' => true, 'id' => $mysqli->insert_id]);
     exit();
@@ -88,26 +141,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_custom_item'])) {
 
 // Handle custom item check toggle
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_custom'])) {
-    $itemid  = (int)$_POST['itemid'];
-    $checked = (int)$_POST['checked'];
-    $mysqli->query("UPDATE customitems SET ischecked = $checked WHERE customid = $itemid AND tripid = $tripid AND userid = $user_id");
+    $itemid = filter_input(INPUT_POST, 'itemid', FILTER_VALIDATE_INT);
+    $checked = filter_input(INPUT_POST, 'checked', FILTER_VALIDATE_INT);
+    if ($itemid === false || $itemid === null || $checked === false || $checked === null) {
+        echo json_encode(['success' => false, 'error' => 'Invalid input']);
+        exit();
+    }
+    $checked = $checked ? 1 : 0;
+    $toggle_custom_stmt = $mysqli->prepare("UPDATE customitems SET ischecked = ? WHERE customid = ? AND tripid = ? AND userid = ?");
+    $toggle_custom_stmt->bind_param("iiii", $checked, $itemid, $tripid, $user_id);
+    $toggle_custom_stmt->execute();
     echo json_encode(['success' => true]);
     exit();
 }
 
 // Handle custom item dismiss
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dismiss_custom'])) {
-    $itemid = (int)$_POST['itemid'];
-    $mysqli->query("UPDATE customitems SET isdismissed = 1 WHERE customid = $itemid AND tripid = $tripid AND userid = $user_id");
+    $itemid = filter_input(INPUT_POST, 'itemid', FILTER_VALIDATE_INT);
+    if ($itemid === false || $itemid === null) {
+        echo json_encode(['success' => false, 'error' => 'Invalid item id']);
+        exit();
+    }
+    $dismiss_custom_stmt = $mysqli->prepare("UPDATE customitems SET isdismissed = 1 WHERE customid = ? AND tripid = ? AND userid = ?");
+    $dismiss_custom_stmt->bind_param("iii", $itemid, $tripid, $user_id);
+    $dismiss_custom_stmt->execute();
     echo json_encode(['success' => true]);
     exit();
 }
 
 // Handle custom item quantity update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_custom_qty'])) {
-    $itemid   = (int)$_POST['itemid'];
-    $quantity = max(1, (int)$_POST['quantity']);
-    $mysqli->query("UPDATE customitems SET quantity = $quantity WHERE customid = $itemid AND tripid = $tripid AND userid = $user_id");
+    $itemid = filter_input(INPUT_POST, 'itemid', FILTER_VALIDATE_INT);
+    $quantity = filter_input(INPUT_POST, 'quantity', FILTER_VALIDATE_INT);
+    if ($itemid === false || $itemid === null || $quantity === false || $quantity === null) {
+        echo json_encode(['success' => false, 'error' => 'Invalid input']);
+        exit();
+    }
+    $quantity = max(1, $quantity);
+    $update_custom_qty_stmt = $mysqli->prepare("UPDATE customitems SET quantity = ? WHERE customid = ? AND tripid = ? AND userid = ?");
+    $update_custom_qty_stmt->bind_param("iiii", $quantity, $itemid, $tripid, $user_id);
+    $update_custom_qty_stmt->execute();
     echo json_encode(['success' => true]);
     exit();
 }
@@ -124,17 +197,20 @@ $weather_condition  = $weather_list  ? "si.weathertag IS NULL OR si.weathertag I
 $activity_condition = $activity_list ? "si.activitytag IS NULL OR si.activitytag IN ($activity_list)" : "si.activitytag IS NULL";
 
 // Pull items for this trip that are not dismissed
-$items_query = $mysqli->query("
+$items_stmt = $mysqli->prepare("
     SELECT si.itemid, si.itemname, si.category,
            COALESCE(ti.ischecked, 0) AS ischecked,
            COALESCE(ti.quantity, 1)  AS quantity
     FROM suggesteditems si
-    LEFT JOIN tripitems ti ON ti.itemid = si.itemid AND ti.tripid = $tripid
+    LEFT JOIN tripitems ti ON ti.itemid = si.itemid AND ti.tripid = ?
     WHERE ($weather_condition)
       AND ($activity_condition)
       AND (ti.isdismissed IS NULL OR ti.isdismissed = 0)
     ORDER BY si.category, si.itemname
 ");
+$items_stmt->bind_param("i", $tripid);
+$items_stmt->execute();
+$items_query = $items_stmt->get_result();
 
 // Organise by category
 $items_by_category = [];
@@ -148,11 +224,14 @@ while ($row = $items_query->fetch_assoc()) {
 
 
 // Pull existing custom items for this trip
-$custom_query = $mysqli->query("
+$custom_stmt = $mysqli->prepare("
     SELECT customid, customname, ischecked, quantity
     FROM customitems
-    WHERE tripid = $tripid AND (isdismissed = 0 OR isdismissed IS NULL)
+    WHERE tripid = ? AND userid = ? AND (isdismissed = 0 OR isdismissed IS NULL)
 ");
+$custom_stmt->bind_param("ii", $tripid, $user_id);
+$custom_stmt->execute();
+$custom_query = $custom_stmt->get_result();
 $custom_items = [];
 while ($row = $custom_query->fetch_assoc()) {
     $custom_items[] = $row;

@@ -23,34 +23,48 @@ function checkTripNotifications($mysqli) {
 
 function sendNotificationsForTrips($mysqli, $trips, $type) {
     while ($trip = $trips->fetch_assoc()) {
-        $tripid   = $trip['tripid'];
-        $tripname = $mysqli->real_escape_string($trip['tripname']);
-        $message = $mysqli->real_escape_string(
+        $tripid = (int)$trip['tripid'];
+        $owner_id = (int)$trip['owner_id'];
+        $tripname = (string)$trip['tripname'];
+        $message = (
             $type === '24h'
                ? "Your trip '$tripname' starts in less than 24 hours!"
                : "Your trip '$tripname' is coming up in less than a week!"
-         );
+        );
         $now = date('Y-m-d H:i:s');
 
         // Get all users to notify: owner + tripmembers
-        $users = $mysqli->query("
-            SELECT userid FROM tripmembers WHERE tripid = $tripid
+        $users_stmt = $mysqli->prepare("
+            SELECT userid FROM tripmembers WHERE tripid = ?
             UNION
-            SELECT {$trip['owner_id']} AS userid
+            SELECT ? AS userid
         ");
+        $users_stmt->bind_param("ii", $tripid, $owner_id);
+        $users_stmt->execute();
+        $users = $users_stmt->get_result();
 
         while ($user = $users->fetch_assoc()) {
-            $uid = $user['userid'];
-            $exists = $mysqli->query("SELECT notifid FROM notifications WHERE userid = $uid AND tripid = $tripid AND message = '$message'");
+            $uid = (int)$user['userid'];
+            $exists_stmt = $mysqli->prepare("SELECT notifid FROM notifications WHERE userid = ? AND tripid = ? AND message = ?");
+            $exists_stmt->bind_param("iis", $uid, $tripid, $message);
+            $exists_stmt->execute();
+            $exists = $exists_stmt->get_result();
             if ($exists->num_rows === 0) {
-                $mysqli->query("INSERT INTO notifications (userid, tripid, message, isread, createdat)
-                                VALUES ($uid, $tripid, '$message', 0, '$now')");
+                $insert_stmt = $mysqli->prepare("INSERT INTO notifications (userid, tripid, message, isread, createdat)
+                                VALUES (?, ?, ?, 0, ?)");
+                $insert_stmt->bind_param("iiss", $uid, $tripid, $message, $now);
+                $insert_stmt->execute();
             }
         }
 
         // Mark trip as notified for this threshold
         $col = $type === '24h' ? 'notified_24h' : 'notified_7d';
-        $mysqli->query("UPDATE trips SET $col = 1 WHERE tripid = $tripid");
+        if (!in_array($col, ['notified_24h', 'notified_7d'], true)) {
+            continue;
+        }
+        $update_stmt = $mysqli->prepare("UPDATE trips SET $col = 1 WHERE tripid = ?");
+        $update_stmt->bind_param("i", $tripid);
+        $update_stmt->execute();
     }
 }
 ?>

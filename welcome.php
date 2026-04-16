@@ -5,21 +5,23 @@ include("checkNotifications.php");
 
 if (isset($_SESSION['logged_in'])) {
     header("Location: home.php");
-    checkTripNotifications($mysqli, $_SESSION['logged_in_user_id']);
+    checkTripNotifications($mysqli);
     exit();
 }
 
 $error = null;
 
 if (isset($_POST['submit']) && isset($_POST['email']) && isset($_POST['password'])) {
-    $select_query = "SELECT userid, username, password, email, pfpurl FROM users";
-    $select_result = $mysqli->query($select_query);
-    if ($mysqli->error) {
-        $error = "Select query error: " . $mysqli->error;
-    }
-    $found = false;
-    while ($row = $select_result->fetch_object()) {
-        if (($_POST['email'] == $row->email) && (md5($_POST['password']) == $row->password)) {
+    $email = filter_var(trim($_POST['email']), FILTER_VALIDATE_EMAIL);
+    $password = md5($_POST['password']);
+    if ($email === false) {
+        $error = "Incorrect email or password";
+    } else {
+        $stmt = $mysqli->prepare("SELECT userid, username, password, email, pfpurl FROM users WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_object();
+        if ($row && hash_equals($row->password, $password)) {
             $_SESSION['logged_in'] = true;
             $_SESSION['logged_in_user'] = $row->username;
             $_SESSION['logged_in_user_id'] = $row->userid;
@@ -28,10 +30,9 @@ if (isset($_POST['submit']) && isset($_POST['email']) && isset($_POST['password'
 
             header("Location: home.php");
             exit();
-            $found = true;
         }
+        $error = "Incorrect email or password";
     }
-    if (!$found) $error = "Incorrect email or password";
 }
 ?>
 <!DOCTYPE html>

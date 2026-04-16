@@ -9,20 +9,28 @@ if (!isset($_SESSION['logged_in'])) {
 
 require("connectionInclude.php");
 
-$notif_count = $mysqli->query("SELECT COUNT(*) as cnt FROM notifications WHERE userid = {$_SESSION['logged_in_user_id']} AND isread = 0")->fetch_assoc()['cnt'];
-$notif_icon = $notif_count > 0 ? 'img/notif2.png' : 'img/notif.png';
+$user_id = filter_var($_SESSION['logged_in_user_id'] ?? null, FILTER_VALIDATE_INT);
+if ($user_id === false || $user_id === null) {
+    header("Location: logout.php");
+    exit();
+}
 
-$user_id = $_SESSION['logged_in_user_id'];
+$notif_stmt = $mysqli->prepare("SELECT COUNT(*) as cnt FROM notifications WHERE userid = ? AND isread = 0");
+$notif_stmt->bind_param("i", $user_id);
+$notif_stmt->execute();
+$notif_count = $notif_stmt->get_result()->fetch_assoc()['cnt'];
+$notif_icon = $notif_count > 0 ? 'img/notif2.png' : 'img/notif.png';
 
 // Handle profile save (username + email)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_profile'])) {
-    $username = $mysqli->real_escape_string(trim($_POST['username']));
-    $email    = $mysqli->real_escape_string(trim($_POST['email']));
-    if (empty($username) || empty($email)) {
+    $username = trim($_POST['username'] ?? '');
+    $email = filter_var(trim($_POST['email'] ?? ''), FILTER_VALIDATE_EMAIL);
+    if ($username === '' || $email === false) {
         echo json_encode(['success' => false, 'error' => 'Username and email are required.']);
     } else {
-        $mysqli->query("UPDATE users SET username = '$username', email = '$email' WHERE userid = $user_id");
-        if ($mysqli->error) {
+        $stmt = $mysqli->prepare("UPDATE users SET username = ?, email = ? WHERE userid = ?");
+        $stmt->bind_param("ssi", $username, $email, $user_id);
+        if (!$stmt->execute()) {
             echo json_encode(['success' => false, 'error' => $mysqli->error]);
         } else {
             $_SESSION['logged_in_user'] = $username;
@@ -34,29 +42,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_profile'])) {
 
 // Handle pfp URL save
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_pfp'])) {
-    $pfpurl = $mysqli->real_escape_string(trim($_POST['pfpurl']));
-    $mysqli->query("UPDATE users SET pfpurl = '$pfpurl' WHERE userid = $user_id");
-    echo json_encode(['success' => $mysqli->error ? false : true, 'error' => $mysqli->error]);
+    $pfpurl = trim($_POST['pfpurl'] ?? '');
+    $stmt = $mysqli->prepare("UPDATE users SET pfpurl = ? WHERE userid = ?");
+    $stmt->bind_param("si", $pfpurl, $user_id);
+    $ok = $stmt->execute();
+    echo json_encode(['success' => $ok, 'error' => $ok ? null : $mysqli->error]);
     exit();
 }
 
 // Handle password change
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_password'])) {
-    $current = md5($_POST['current_password']);
-    $new     = md5($_POST['new_password']);
-    $check   = $mysqli->query("SELECT userid FROM users WHERE userid = $user_id AND password = '$current'");
+    $current_raw = $_POST['current_password'] ?? '';
+    $new_raw = $_POST['new_password'] ?? '';
+    if ($current_raw === '' || $new_raw === '') {
+        echo json_encode(['success' => false, 'error' => 'Both password fields are required.']);
+        exit();
+    }
+
+    $current = md5($current_raw);
+    $new = md5($new_raw);
+    $check_stmt = $mysqli->prepare("SELECT userid FROM users WHERE userid = ? AND password = ?");
+    $check_stmt->bind_param("is", $user_id, $current);
+    $check_stmt->execute();
+    $check = $check_stmt->get_result();
     if ($check->num_rows === 0) {
         echo json_encode(['success' => false, 'error' => 'Current password is incorrect.']);
     } else {
-        $mysqli->query("UPDATE users SET password = '$new' WHERE userid = $user_id");
-        echo json_encode(['success' => true]);
+        $update_stmt = $mysqli->prepare("UPDATE users SET password = ? WHERE userid = ?");
+        $update_stmt->bind_param("si", $new, $user_id);
+        echo json_encode(['success' => $update_stmt->execute()]);
     }
     exit();
 }
 
 // Get current user info
-$user_query = $mysqli->query("SELECT userid, username, email, pfpurl FROM users WHERE userid = $user_id");
-$user = $user_query->fetch_assoc();
+$user_stmt = $mysqli->prepare("SELECT userid, username, email, pfpurl FROM users WHERE userid = ?");
+$user_stmt->bind_param("i", $user_id);
+$user_stmt->execute();
+$user = $user_stmt->get_result()->fetch_assoc();
 
 function checkNull($dataPoint) {
     return ($dataPoint === null || $dataPoint === "") ? "N/A" : $dataPoint;
@@ -1173,25 +1196,37 @@ fetch('profile.php', {
 
       // ── NOTIFICATIONS (localStorage only — no DB table) ──
       function loadNotifications() {
+        const notifEmail = document.getElementById('notif-email');
+        const notifPush = document.getElementById('notif-push');
+        const notifReminders = document.getElementById('notif-reminders');
+        const notifUpdates = document.getElementById('notif-updates');
+        if (!notifEmail || !notifPush || !notifReminders || !notifUpdates) return;
+
         try {
           const saved = JSON.parse(localStorage.getItem('pm_notif') || '{}');
-          document.getElementById('notif-email').checked     = saved.email     ?? true;
-          document.getElementById('notif-push').checked      = saved.push      ?? false;
-          document.getElementById('notif-reminders').checked = saved.reminders ?? true;
-          document.getElementById('notif-updates').checked   = saved.updates   ?? false;
+          notifEmail.checked     = saved.email     ?? true;
+          notifPush.checked      = saved.push      ?? false;
+          notifReminders.checked = saved.reminders ?? true;
+          notifUpdates.checked   = saved.updates   ?? false;
         } catch (e) {
-          document.getElementById('notif-email').checked     = true;
-          document.getElementById('notif-reminders').checked = true;
+          notifEmail.checked = true;
+          notifReminders.checked = true;
         }
       }
 
       function saveNotifications() {
+        const notifEmail = document.getElementById('notif-email');
+        const notifPush = document.getElementById('notif-push');
+        const notifReminders = document.getElementById('notif-reminders');
+        const notifUpdates = document.getElementById('notif-updates');
+        if (!notifEmail || !notifPush || !notifReminders || !notifUpdates) return;
+
         try {
           localStorage.setItem('pm_notif', JSON.stringify({
-            email:     document.getElementById('notif-email').checked,
-            push:      document.getElementById('notif-push').checked,
-            reminders: document.getElementById('notif-reminders').checked,
-            updates:   document.getElementById('notif-updates').checked,
+            email:     notifEmail.checked,
+            push:      notifPush.checked,
+            reminders: notifReminders.checked,
+            updates:   notifUpdates.checked,
           }));
         } catch (e) {}
         showToast('Notification preferences saved!');
@@ -1199,23 +1234,33 @@ fetch('profile.php', {
 
       // ── PRIVACY (localStorage only) ──
       function loadPrivacy() {
+        const privAnalytics = document.getElementById('priv-analytics');
+        const privPersonalise = document.getElementById('priv-personalise');
+        const privShare = document.getElementById('priv-share');
+        if (!privAnalytics || !privPersonalise || !privShare) return;
+
         try {
           const saved = JSON.parse(localStorage.getItem('pm_privacy') || '{}');
-          document.getElementById('priv-analytics').checked   = saved.analytics   ?? true;
-          document.getElementById('priv-personalise').checked = saved.personalise ?? true;
-          document.getElementById('priv-share').checked       = saved.share       ?? false;
+          privAnalytics.checked   = saved.analytics   ?? true;
+          privPersonalise.checked = saved.personalise ?? true;
+          privShare.checked       = saved.share       ?? false;
         } catch (e) {
-          document.getElementById('priv-analytics').checked   = true;
-          document.getElementById('priv-personalise').checked = true;
+          privAnalytics.checked   = true;
+          privPersonalise.checked = true;
         }
       }
 
       function savePrivacy() {
+        const privAnalytics = document.getElementById('priv-analytics');
+        const privPersonalise = document.getElementById('priv-personalise');
+        const privShare = document.getElementById('priv-share');
+        if (!privAnalytics || !privPersonalise || !privShare) return;
+
         try {
           localStorage.setItem('pm_privacy', JSON.stringify({
-            analytics:   document.getElementById('priv-analytics').checked,
-            personalise: document.getElementById('priv-personalise').checked,
-            share:       document.getElementById('priv-share').checked,
+            analytics:   privAnalytics.checked,
+            personalise: privPersonalise.checked,
+            share:       privShare.checked,
           }));
         } catch (e) {}
         showToast('Privacy settings saved!');

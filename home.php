@@ -11,7 +11,16 @@ if (!isset($_SESSION['logged_in'])) {
 //server connect script
 require("connectionInclude.php");
 
-$notif_count = $mysqli->query("SELECT COUNT(*) as cnt FROM notifications WHERE userid = {$_SESSION['logged_in_user_id']} AND isread = 0")->fetch_assoc()['cnt'];
+$user_id = filter_var($_SESSION['logged_in_user_id'] ?? null, FILTER_VALIDATE_INT);
+if ($user_id === false || $user_id === null) {
+    header("Location: logout.php");
+    exit();
+}
+
+$notif_stmt = $mysqli->prepare("SELECT COUNT(*) as cnt FROM notifications WHERE userid = ? AND isread = 0");
+$notif_stmt->bind_param("i", $user_id);
+$notif_stmt->execute();
+$notif_count = $notif_stmt->get_result()->fetch_assoc()['cnt'];
 $notif_icon = $notif_count > 0 ? 'img/notif2.png' : 'img/notif.png';
 
 /*
@@ -95,13 +104,15 @@ function checkNull($dataPoint) {
     return ($dataPoint === null || $dataPoint === "") ? "N/A" : $dataPoint;
 }
 
-$user_id = $_SESSION['logged_in_user_id'];
-$query = "SELECT tripid, tripname, city, country, startdate, enddate, iconurl
+$trip_stmt = $mysqli->prepare("SELECT tripid, tripname, city, country, startdate, enddate, iconurl
           FROM trips
-          WHERE (userid = $user_id OR tripid IN (SELECT tripid FROM tripmembers WHERE userid = $user_id))
+          WHERE (userid = ? OR tripid IN (SELECT tripid FROM tripmembers WHERE userid = ?))
           AND (isdeleted = 0 OR isdeleted IS NULL)
-          ORDER BY startdate ASC";$result = $mysqli->query($query);
-if ($mysqli->error) {
+          ORDER BY startdate ASC");
+$trip_stmt->bind_param("ii", $user_id, $user_id);
+$trip_stmt->execute();
+$result = $trip_stmt->get_result();
+if ($result === false) {
     print "Query failed: " . $mysqli->error;
 }
 
@@ -167,17 +178,6 @@ if ($mysqli->error) {
             <!--Trip Cards-->
             <div class="grid">
                 <?php
-                $user_id = $_SESSION['logged_in_user_id'];
-                $query = "SELECT tripid, tripname, city, country, startdate, enddate, iconurl
-                        FROM trips
-                        WHERE (userid = $user_id OR tripid IN (SELECT tripid FROM tripmembers WHERE userid = $user_id))
-                        AND (isdeleted = 0 OR isdeleted IS NULL)
-                        ORDER BY startdate ASC";
-                $result = $mysqli->query($query);
-                if ($mysqli->error) {
-                    print "Query failed: " . $mysqli->error;
-                }
-
 include_once("getTripMembers.php");
 
 while ($row = $result->fetch_array(MYSQLI_ASSOC)) {

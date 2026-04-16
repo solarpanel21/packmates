@@ -9,25 +9,38 @@ if (isset($_SESSION['logged_in'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_account'])) {
-    $username = $mysqli->real_escape_string($_POST['username']);
-    $email = $mysqli->real_escape_string($_POST['email']);
-    $password = md5($_POST['password']);
-    $password2 = md5($_POST['password2']);
+    $username = trim($_POST['username'] ?? '');
+    $email_input = trim($_POST['email'] ?? '');
+    $email = filter_var($email_input, FILTER_VALIDATE_EMAIL);
+    $password_raw = $_POST['password'] ?? '';
+    $password2_raw = $_POST['password2'] ?? '';
 
-    if ($password !== $password2) {
+    if ($email === false || $username === '') {
+        $error = "Please enter a valid username and email";
+    } else if ($password_raw !== $password2_raw) {
         $error = "Passwords don't match";
     } else {
-        $check = $mysqli->query("SELECT userid FROM users WHERE username = '$username' OR email = '$email'");
-        if ($check->num_rows > 0) {
+        $check_stmt = $mysqli->prepare("SELECT userid FROM users WHERE username = ? OR email = ?");
+        $check_stmt->bind_param("ss", $username, $email);
+        $check_stmt->execute();
+        $check = $check_stmt->get_result();
+
+        if ($check !== false && $check->num_rows > 0) {
             $error = "Username or email already taken";
         } else {
-            $insert_query = "INSERT INTO users (username, password, email) VALUES ('$username', '$password', '$email')";
-            $mysqli->query($insert_query);
-            if ($mysqli->error) {
+            $password = md5($password_raw);
+            $insert_stmt = $mysqli->prepare("INSERT INTO users (username, password, email) VALUES (?, ?, ?)");
+            $insert_stmt->bind_param("sss", $username, $password, $email);
+            $created = $insert_stmt->execute();
+
+            if (!$created) {
                 $error = "Error creating account: " . $mysqli->error;
             } else {
               //go home if already logged in
-                $new_user = $mysqli->query("SELECT userid, username FROM users WHERE email = '$email'")->fetch_object();
+                $user_stmt = $mysqli->prepare("SELECT userid, username FROM users WHERE email = ?");
+                $user_stmt->bind_param("s", $email);
+                $user_stmt->execute();
+                $new_user = $user_stmt->get_result()->fetch_object();
                 $_SESSION['logged_in'] = true;
                 $_SESSION['logged_in_user'] = $new_user->username;
                 $_SESSION['logged_in_user_id'] = $new_user->userid;

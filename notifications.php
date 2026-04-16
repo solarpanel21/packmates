@@ -9,43 +9,60 @@ if (!isset($_SESSION['logged_in'])) {
 
 require("connectionInclude.php");
 
-$notif_count = $mysqli->query("SELECT COUNT(*) as cnt FROM notifications WHERE userid = {$_SESSION['logged_in_user_id']} AND isread = 0")->fetch_assoc()['cnt'];
-$notif_icon = $notif_count > 0 ? 'img/notif2.png' : 'img/notif.png';
+$user_id = filter_var($_SESSION['logged_in_user_id'] ?? null, FILTER_VALIDATE_INT);
+if ($user_id === false || $user_id === null) {
+    header("Location: logout.php");
+    exit();
+}
 
-$user_id = $_SESSION['logged_in_user_id'];
+$notif_stmt = $mysqli->prepare("SELECT COUNT(*) as cnt FROM notifications WHERE userid = ? AND isread = 0");
+$notif_stmt->bind_param("i", $user_id);
+$notif_stmt->execute();
+$notif_count = $notif_stmt->get_result()->fetch_assoc()['cnt'];
+$notif_icon = $notif_count > 0 ? 'img/notif2.png' : 'img/notif.png';
 
 // Handle clear single notification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_notif'])) {
-    $notifid = (int)$_POST['notifid'];
-    $mysqli->query("UPDATE notifications SET isread = 1 WHERE notifid = $notifid AND userid = $user_id");
-    echo json_encode(['success' => true]);
+    $notifid = filter_input(INPUT_POST, 'notifid', FILTER_VALIDATE_INT);
+    if ($notifid === false || $notifid === null) {
+        echo json_encode(['success' => false, 'error' => 'Invalid notification id']);
+        exit();
+    }
+    $stmt = $mysqli->prepare("UPDATE notifications SET isread = 1 WHERE notifid = ? AND userid = ?");
+    $stmt->bind_param("ii", $notifid, $user_id);
+    echo json_encode(['success' => $stmt->execute()]);
     exit();
 }
 
 // Handle clear all
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_all'])) {
-    $mysqli->query("UPDATE notifications SET isread = 1 WHERE userid = $user_id");
-    echo json_encode(['success' => true]);
+    $stmt = $mysqli->prepare("UPDATE notifications SET isread = 1 WHERE userid = ?");
+    $stmt->bind_param("i", $user_id);
+    echo json_encode(['success' => $stmt->execute()]);
     exit();
 }
 
 // Handle mark all read
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_all_read'])) {
-    $mysqli->query("UPDATE notifications SET isread = 1 WHERE userid = $user_id");
-    echo json_encode(['success' => true]);
+    $stmt = $mysqli->prepare("UPDATE notifications SET isread = 1 WHERE userid = ?");
+    $stmt->bind_param("i", $user_id);
+    echo json_encode(['success' => $stmt->execute()]);
     exit();
 }
 
 // Get unread notifications split into today vs this week
 $today_start = date('Y-m-d') . ' 00:00:00';
 
-$notifs_query = $mysqli->query("
+$notifs_stmt = $mysqli->prepare("
     SELECT n.notifid, n.message, n.createdat, n.tripid, t.tripname
     FROM notifications n
     JOIN trips t ON t.tripid = n.tripid
-    WHERE n.userid = $user_id AND n.isread = 0
+    WHERE n.userid = ? AND n.isread = 0
     ORDER BY n.createdat DESC
 ");
+$notifs_stmt->bind_param("i", $user_id);
+$notifs_stmt->execute();
+$notifs_query = $notifs_stmt->get_result();
 
 $today_notifs = [];
 $week_notifs  = [];

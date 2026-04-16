@@ -6,4 +6,5 @@ if ($mysqli->connect_errno) {
 } else {
    //print("Connected to MySQL")
 }
+$mysqli->set_charset('utf8mb4');
 ?>
