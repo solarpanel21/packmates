@@ -5,7 +5,7 @@ To run:
 2. Open project folder in terminal
 3. docker compose up --build
 4. Go to http://localhost:8080/home.php
-	(or signup or login.php)
+	(or signup.php or welcome.php)
 
 To stop:
 1. docker compose down
